@@ -1,0 +1,16 @@
+# Web framework
+fastapi==0.136.0
+uvicorn[standard]==0.34.0
+
+# Database
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+alembic==1.14.0
+
+# Settings & Validation
+pydantic==2.11.0
+pydantic-settings==2.8.0
+python-dotenv==1.1.0
+
+# Logging
+structlog==25.1.0
