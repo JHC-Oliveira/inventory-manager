@@ -1,0 +1,87 @@
+services:
+
+  # -------- FastAPI Backend ------------
+  api:
+    build: ./backend
+    container_name: inventory_api
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - inventory_network
+    restart: unless-stopped
+
+  # --------- PostgreSQL -------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: inventory_postgres
+    environment:
+      POSTGRES_USER: inventoryuser
+      POSTGRES_PASSWORD: UserFlame604912
+      POSTGRES_DB: inventorydb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventoryuser -d inventorydb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - inventory_network
+
+  # ------------ Redis --------------
+  redis:
+    image: redis:7-alpine
+    container_name: inventory_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - inventory_network
+
+  # --------- RabbitMQ ---------------------
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: inventory_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - inventory_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  inventory_network:
+    driver: bridge
