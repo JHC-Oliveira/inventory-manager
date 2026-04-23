@@ -14,3 +14,8 @@ python-dotenv==1.1.0
 
 # Logging
 structlog==25.1.0
+
+# Security
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.20
