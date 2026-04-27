@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from app.config import get_settings
+from app.utils.redis_client import init_redis, close_redis
 
 settings = get_settings()
 logger = structlog.get_logger()
@@ -16,8 +17,13 @@ async def lifespan(app: FastAPI):
     Everything BEFORE the yield runs on startup.
     Everything AFTER the yield runs on shutdown.
     """
-    logger.info("application_starting", env=settings.app_env, app=settings.app_name)
+    # ── Startup ──────────────────────────────────────────
+    logger.info("application_starting", env=settings.app_env)
+    await init_redis()
+    logger.info("redis_connected")
     yield
+    # ── Shutdown ─────────────────────────────────────────
+    await close_redis()
     logger.info("application_stopped")
 
 
