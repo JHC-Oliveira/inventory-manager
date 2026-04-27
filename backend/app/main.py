@@ -6,6 +6,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from app.config import get_settings
 from app.utils.redis_client import init_redis, close_redis
+from app.routers.auth import router as auth_router
 
 settings = get_settings()
 logger = structlog.get_logger()
@@ -54,7 +55,12 @@ app.add_middleware(
 
 
 
-# ------------ Routes ------------
+# ------------ Routers ------------
+
+app.include_router(auth_router)
+
+
+# ------------ Health ------------
 
 @app.get("/health", tags=["System"])
 async def health_check():
