@@ -42,7 +42,8 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
     )
     db.add(new_user)
     await db.flush()  # sends INSERT to DB, gets the generated id, but doesn't commit yet
-
+    await db.commit() 
+    
     # 3. Generate tokens
     access_token = create_access_token(user_id=new_user.id, is_admin=new_user.is_admin)
     refresh_token = create_refresh_token(user_id=new_user.id)
