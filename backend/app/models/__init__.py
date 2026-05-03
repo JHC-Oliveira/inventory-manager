@@ -1,3 +1,5 @@
-from app.models.user import User
-
-__all__ = ["User"]
+from app.models import (
+    User,
+    Product
+)
+__all__ = ["User", "Product"]
