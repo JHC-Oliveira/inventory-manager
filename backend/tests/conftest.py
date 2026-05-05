@@ -48,3 +48,53 @@ async def client():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
+    
+    
+@pytest_asyncio.fixture(scope="function")
+async def user_token(client: AsyncClient) -> str:
+    """Register a regular user and return their access token."""
+    await client.post("/auth/register", json={
+        "email": "user@example.com",
+        "password": "StrongPass123",
+        "full_name": "Regular User",
+    })
+    response = await client.post("/auth/login", data={
+        "username": "user@example.com",
+        "password": "StrongPass123",
+    })
+    return response.json()["access_token"]
+
+
+@pytest_asyncio.fixture(scope="function")
+async def admin_token(client: AsyncClient) -> str:
+    """
+    Register a user then manually flip is_admin=True in the DB.
+    Returns their access token.
+    """
+    await client.post("/auth/register", json={
+        "email": "admin@example.com",
+        "password": "AdminPass123",
+        "full_name": "Admin User",
+    })
+
+    # Flip is_admin directly in the DB — no admin endpoint exists yet
+    from app.database import get_db as real_get_db
+    from sqlalchemy import update
+    from app.models.user import User
+
+    db_generator = app.dependency_overrides[real_get_db]  # direct key access, never None
+    async for session in db_generator():
+        await session.execute(
+            update(User)
+            .where(User.email == "admin@example.com")
+            .values(is_admin=True)
+        )
+        await session.commit()
+        break
+
+    # Log in again — new token will carry is_admin=True
+    response = await client.post("/auth/login", data={
+        "username": "admin@example.com",
+        "password": "AdminPass123",
+    })
+    return response.json()["access_token"]
