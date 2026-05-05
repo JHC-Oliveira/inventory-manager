@@ -65,7 +65,11 @@ async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
-    """Login with email and password, returns tokens."""
+    """
+    Login with email and password, returns tokens.
+    
+    ***ATENTION:*** put your email in the username field 
+    """
 
     # 1. Find user by email
     result = await db.execute(select(User).where(User.email == form_data.username))

@@ -1,15 +1,15 @@
 import structlog
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from app.config import get_settings
 from app.utils.redis_client import init_redis, close_redis
 from app.routers.auth import router as auth_router
+from app.routers.product import router as product_router
 
 # ------------ Imports for Test Route ------------
-from fastapi import Depends
 from app.models.user import User
 from app.dependencies.auth import get_current_user
 from app.schemas.user import UserResponse
@@ -65,14 +65,14 @@ app.add_middleware(
 # ------------ Routers ------------
 
 app.include_router(auth_router)
-
+app.include_router(product_router)
 
 # ------------ Protected Test Route (It will be taken out in phase 3) ------------
 
-@app.get("/me", response_model=UserResponse, tags=["System"])
+@app.get("/me", response_model=UserResponse, tags=["Users"])
 async def get_me(current_user: User = Depends(get_current_user)):
     """Returns the currently authenticated user. Protected route."""
-    return current_user
+    return UserResponse.model_validate(current_user)
 
 
 # ------------ Health ------------
