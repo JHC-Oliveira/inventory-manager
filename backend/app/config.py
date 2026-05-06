@@ -1,6 +1,7 @@
 from pathlib import Path
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import model_validator
 
 # __file__ is the absolute path of config.py itself
 # .parent gives us the app/ folder
@@ -17,8 +18,9 @@ class Settings(BaseSettings):
     # Database
     database_url: str = ""
 
-    # Security
-    secret_key: str = ""
+    # Security CORS
+    secret_key: str = ""    
+
     allowed_origins: str = "http://localhost:3000"
 
     # JWT — added in Phase 2
@@ -27,7 +29,10 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
     
     # Redis — added in Phase 2
-    redis_url: str = ""
+    redis_url: str = "redis://redis:6379/0"
+    
+    # RabbitMQ — added in Phase 4
+    rabbitmq_url: str = "amqp://REDACTED_GUEST:REDACTED_GUEST@rabbitmq:5672/"
     
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
@@ -36,6 +41,21 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    @model_validator(mode="after")
+    def check_required_fields(self) -> "Settings":
+        missing = []
+        
+        if not self.database_url:
+            missing.append("DATABASE_URL")
+        if not self.secret_key:
+            missing.append("SECRET_KEY")
+        if not self.rabbitmq_url:
+            missing.append("RABBITMQ_URL")
+        if missing:
+            raise ValueError(
+                f"Missing required environment variables: {', '.join(missing)}"
+            )
+        return self
     @property
     def allowed_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.allowed_origins.split(",")]
