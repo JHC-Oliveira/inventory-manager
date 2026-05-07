@@ -30,17 +30,25 @@ async def client():
 
     app.dependency_overrides[get_db] = override_get_db
 
+     # Mock for Redis
     with patch("app.utils.redis_client.redis_client") as mock_redis:
         mock_redis.setex = AsyncMock(return_value=True)
         mock_redis.get = AsyncMock(return_value=None)
         mock_redis.delete = AsyncMock(return_value=True)
 
         with patch("app.utils.redis_client.get_redis", AsyncMock(return_value=mock_redis)):
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://localhost"
-            ) as ac:
-                yield ac
+            
+            # Mock for RabbitMQ
+            with patch(
+                "app.utils.rabbitmq.publish_low_stock_alert",
+                new=AsyncMock(return_value=None),
+            ):
+                async with AsyncClient(
+                    transport=ASGITransport(app=app),
+                    base_url="http://localhost"
+                ) as ac:
+                    yield ac                                   # one single yield
+
 
     app.dependency_overrides.clear()
 
