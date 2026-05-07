@@ -6,8 +6,10 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from app.config import get_settings
 from app.utils.redis_client import init_redis, close_redis
+from app.utils.rabbitmq import connect_rabbitmq, close_rabbitmq
 from app.routers.auth import router as auth_router
 from app.routers.product import router as product_router
+from app.routers.stock import router as stock_router
 
 # ------------ Imports for Test Route ------------
 from app.models.user import User
@@ -29,10 +31,14 @@ async def lifespan(app: FastAPI):
     logger.info("application_starting", env=settings.app_env)
     await init_redis()
     logger.info("redis_connected")
+    await connect_rabbitmq()
+    logger.info("rabbitmq_connected")       
     yield
     # ── Shutdown ─────────────────────────────────────────
     await close_redis()
     logger.info("application_stopped")
+    await close_rabbitmq()                                               
+    logger.info("rabbitmq_disconnected")
 
 
 app = FastAPI(
@@ -66,6 +72,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(product_router)
+app.include_router(stock_router)
 
 # ------------ Protected Test Route (It will be taken out in phase 3) ------------
 

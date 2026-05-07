@@ -19,8 +19,7 @@ class Settings(BaseSettings):
     database_url: str = ""
 
     # Security CORS
-    secret_key: str = ""    
-
+    secret_key: str = "" 
     allowed_origins: str = "http://localhost:3000"
 
     # JWT — added in Phase 2
