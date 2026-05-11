@@ -65,6 +65,7 @@ class StockService:
         # 4. Create the movement record — BEFORE updating the product
         movement = StockMovement(
             product_id=product_id,
+            product_sku=product.sku,   # ← snapshot at creation time
             movement_type=data.movement_type,
             quantity_change=data.quantity_change,
             quantity_before=quantity_before,

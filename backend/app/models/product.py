@@ -58,7 +58,7 @@ class Product(Base):
     )
 
     # --- Ownership ---
-    created_by: Mapped[str] = mapped_column(
+    created_by: Mapped[str | None] = mapped_column(
         String(36),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True        # if admin user is deleted, product survives
