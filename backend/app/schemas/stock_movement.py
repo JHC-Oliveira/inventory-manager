@@ -43,7 +43,6 @@ class StockMovementResponse(BaseModel):
     quantity_after: int
     note: str | None
     created_by: str | None
-    created_by_name: str
     created_at: datetime
 
     model_config = {"from_attributes": True}
