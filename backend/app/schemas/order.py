@@ -70,7 +70,6 @@ class OrderResponse(BaseModel):
     customer_name: str
     status: OrderStatus
     created_by: Optional[str]
-    created_by_name: str            # snapshot — always available ✅
     items: list[OrderItemResponse]     # always returned with the order
     created_at: datetime
     updated_at: datetime

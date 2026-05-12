@@ -20,6 +20,7 @@ class StockService:
         product_id: str,
         data: StockAdjustRequest,
         adjusted_by: str,
+        adjusted_by_name: str,
     ) -> StockMovement:
         """
         Adjusts the stock for a product.
@@ -56,6 +57,7 @@ class StockService:
                 quantity_before=quantity_before,
                 quantity_change=data.quantity_change,
                 adjusted_by=adjusted_by,
+                adjusted_by_name=adjusted_by_name
             )
             raise ValueError(
                 f"Insufficient stock. Current: {quantity_before}, "
@@ -91,6 +93,7 @@ class StockService:
             quantity_after=quantity_after,
             quantity_change=data.quantity_change,
             adjusted_by=adjusted_by,
+            adjusted_by_name=adjusted_by_name
         )
 
         # 7. Publish low stock alert AFTER commit — fire and forget
