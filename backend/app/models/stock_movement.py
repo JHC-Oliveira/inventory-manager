@@ -57,6 +57,10 @@ class StockMovement(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
+    
+    created_by_name: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    )  # snapshot of user.full_name at order creation time
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
