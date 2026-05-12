@@ -76,7 +76,7 @@ app.include_router(product_router)
 app.include_router(stock_router)
 app.include_router(orders_router)
 
-# ------------ Protected Test Route (It will be taken out in phase 3) ------------
+# ------------ Protected Test Route ------------
 
 @app.get("/me", response_model=UserResponse, tags=["Users"])
 async def get_me(current_user: User = Depends(get_current_user)):

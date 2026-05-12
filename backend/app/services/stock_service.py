@@ -85,6 +85,15 @@ class StockService:
         if commit:
             await self.db.commit()
             await self.db.refresh(movement)
+            
+            # 7. Publish low stock alert AFTER commit — fire and forget
+            if product.is_low_stock:
+                await publish_low_stock_alert(
+                    product_id=product_id,
+                    sku=product.sku,
+                    current_quantity=quantity_after,
+                    threshold=product.low_stock_threshold,
+            )
         else:
             await self.db.flush()   # write to DB but don't close transaction
 
@@ -99,15 +108,6 @@ class StockService:
             adjusted_by=adjusted_by,
             adjusted_by_name=adjusted_by_name
         )
-
-        # 7. Publish low stock alert AFTER commit — fire and forget
-        if product.is_low_stock:
-            await publish_low_stock_alert(
-                product_id=product_id,
-                sku=product.sku,
-                current_quantity=quantity_after,
-                threshold=product.low_stock_threshold,
-            )
 
         return movement
 
