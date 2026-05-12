@@ -15,9 +15,9 @@ if TYPE_CHECKING:
 
 
 class OrderStatus(PyEnum):
-    PENDING = "pending"          # order placed, stock reserved
-    FULFILLED = "fulfilled"      # order shipped / completed
-    CANCELLED = "cancelled"      # order cancelled, stock restored
+    PENDING = "PENDING"          # order placed, stock reserved
+    FULFILLED = "FULFILLED"      # order shipped / completed
+    CANCELLED = "CANCELLED"      # order cancelled, stock restored
 
 
 class Order(Base):

@@ -10,6 +10,7 @@ from app.schemas.order import OrderCreate, OrderListResponse, OrderResponse
 from app.schemas.stock_movement import StockAdjustRequest
 from app.models.stock_movement import MovementType
 from app.services.stock_service import StockService
+from sqlalchemy.orm import selectinload 
 
 logger = structlog.get_logger()
 
@@ -96,6 +97,7 @@ class OrderService:
                 ),
                 adjusted_by=created_by,
                 adjusted_by_name=created_by_name,
+                commit=False
             )
 
         # 4. Commit everything atomically
@@ -103,6 +105,13 @@ class OrderService:
         #    All in one transaction — all succeed or all roll back
         await self.db.commit()
         await self.db.refresh(order)
+        
+        result = await self.db.execute(
+            select(Order)
+            .options(selectinload(Order.items))
+            .where(Order.id == order.id)
+        )
+        order = result.scalar_one()
 
         logger.info(
             "order_created",
@@ -164,6 +173,7 @@ class OrderService:
                 ),
                 adjusted_by=cancelled_by,
                 adjusted_by_name=cancelled_by_name,
+                commit=False
             )
 
         # 4. Mark the order as cancelled
@@ -171,6 +181,13 @@ class OrderService:
         await self.db.commit()
         await self.db.refresh(order)
 
+        result = await self.db.execute(
+            select(Order)
+            .options(selectinload(Order.items))
+            .where(Order.id == order.id)
+        )
+        
+        order = result.scalar_one()
         logger.info(
             "order_cancelled",
             order_id=order_id,
@@ -209,6 +226,7 @@ class OrderService:
         offset = (page - 1) * page_size
         result = await self.db.execute(
             select(Order)
+            .options(selectinload(Order.items))
             .order_by(Order.created_at.desc())
             .offset(offset)
             .limit(page_size)
@@ -237,7 +255,9 @@ class OrderService:
         Prefixed with _ = private, only used inside this service.
         """
         result = await self.db.execute(
-            select(Order).where(Order.id == order_id)
+            select(Order)
+            .options(selectinload(Order.items))
+            .where(Order.id == order_id)
         )
         order = result.scalar_one_or_none()
 
