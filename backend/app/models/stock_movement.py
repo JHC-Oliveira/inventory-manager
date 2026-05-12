@@ -35,7 +35,9 @@ class StockMovement(Base):
     )
     
     # --- Product snapshot (NEW) ---
-    product_sku: Mapped[str] = mapped_column(String(100), nullable=False)
+    product_sku: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    )
     
     movement_type: Mapped[MovementType] = mapped_column(
         Enum(MovementType), nullable=False
