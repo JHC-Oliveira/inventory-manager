@@ -20,7 +20,8 @@ class StockService:
         product_id: str,
         data: StockAdjustRequest,
         adjusted_by: str,
-        adjusted_by_name: str,
+        adjusted_by_name: str = "",
+        commit: bool = True, 
     ) -> StockMovement:
         """
         Adjusts the stock for a product.
@@ -67,7 +68,7 @@ class StockService:
         # 4. Create the movement record — BEFORE updating the product
         movement = StockMovement(
             product_id=product_id,
-            product_sku=product.sku,   # ← snapshot at creation time
+            product_sku=product.sku,   # snapshot at creation time
             movement_type=data.movement_type,
             quantity_change=data.quantity_change,
             quantity_before=quantity_before,
@@ -80,9 +81,12 @@ class StockService:
         # 5. Update the product quantity
         product.quantity = quantity_after
 
-        # 6. Commit both changes atomically
-        await self.db.commit()
-        await self.db.refresh(movement)
+        # 6. Commit OR just flush — caller decides
+        if commit:
+            await self.db.commit()
+            await self.db.refresh(movement)
+        else:
+            await self.db.flush()   # write to DB but don't close transaction
 
         logger.info(
             "stock_adjusted",
