@@ -38,6 +38,7 @@ async def adjust_stock(
             product_id=product_id,
             data=data,
             adjusted_by=current_user.id,
+            adjusted_by_name=current_user.full_name
         )
         return StockMovementResponse.model_validate(movement)
 

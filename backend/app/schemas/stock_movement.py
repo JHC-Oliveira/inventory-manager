@@ -35,7 +35,8 @@ class StockMovementResponse(BaseModel):
     """Shape of a single movement record returned to the client"""
 
     id: str
-    product_id: str
+    product_id: str | None
+    product_sku: str    # snapshot
     movement_type: MovementType
     quantity_change: int
     quantity_before: int

@@ -10,6 +10,7 @@ from app.utils.rabbitmq import connect_rabbitmq, close_rabbitmq
 from app.routers.auth import router as auth_router
 from app.routers.product import router as product_router
 from app.routers.stock import router as stock_router
+from app.routers.orders import router as orders_router
 
 # ------------ Imports for Test Route ------------
 from app.models.user import User
@@ -73,6 +74,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(product_router)
 app.include_router(stock_router)
+app.include_router(orders_router)
 
 # ------------ Protected Test Route (It will be taken out in phase 3) ------------
 
