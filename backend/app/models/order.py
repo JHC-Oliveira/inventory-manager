@@ -40,6 +40,10 @@ class Order(Base):
     created_by: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    
+    created_by_name: Mapped[str] = mapped_column(   
+        String(100), nullable=False
+    )  # snapshot of user.full_name at order creation time
 
     # --- Timestamps ---
     created_at: Mapped[datetime] = mapped_column(
