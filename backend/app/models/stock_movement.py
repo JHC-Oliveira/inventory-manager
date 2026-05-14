@@ -1,16 +1,16 @@
-import uuid
 from datetime import datetime, timezone
 from enum import Enum as PyEnum
 
 from sqlalchemy import String, Integer, Text, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
-
 from app.database import Base
+from app.utils.id_generator import make_id 
 
 if TYPE_CHECKING:
     from app.models.product import Product
     from app.models.user import User
+    
 
 
 class MovementType(PyEnum):
@@ -23,14 +23,14 @@ class StockMovement(Base):
     __tablename__ = "stock_movements"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+        String(40), primary_key=True, default=lambda: make_id("stk")
     )
     
     # --- FK is now nullable + SET NULL ---
     product_id: Mapped[str | None] = mapped_column(
-        String(36),
-        ForeignKey("products.id", ondelete="SET NULL"),  # ← changed
-        nullable=True,                                    # ← changed
+        String(40),
+        ForeignKey("products.id", ondelete="SET NULL"),  
+        nullable=True,                                    
         index=True,
     )
     
@@ -55,7 +55,7 @@ class StockMovement(Base):
         Text, nullable=True
     )
     created_by: Mapped[str | None] = mapped_column(
-        String(36),
+        String(40),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )

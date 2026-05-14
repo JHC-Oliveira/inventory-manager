@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 from enum import Enum as PyEnum
@@ -6,8 +5,8 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.database import Base
+from app.utils.id_generator import make_id 
 
 if TYPE_CHECKING:
     from app.models.product import Product
@@ -25,7 +24,7 @@ class Order(Base):
 
     # --- Identity ---
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+        String(40), primary_key=True, default=lambda: make_id("ord")
     )
 
     # --- Details ---
@@ -38,7 +37,7 @@ class Order(Base):
 
     # --- Ownership ---
     created_by: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        String(40), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     
     # --- Timestamps ---
@@ -69,18 +68,18 @@ class OrderItem(Base):
 
     # --- Identity ---
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+        String(40), primary_key=True, default=lambda: make_id("itm")
     )
 
     # --- Foreign Keys ---
     order_id: Mapped[str] = mapped_column(
-        String(36),
+        String(40),
         ForeignKey("orders.id", ondelete="CASCADE"),  # item dies with order
         nullable=False,
         index=True,
     )
     product_id: Mapped[str | None] = mapped_column(
-        String(36),
+        String(40),
         ForeignKey("products.id", ondelete="SET NULL"),  # history survives
         nullable=True,
         index=True,
