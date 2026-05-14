@@ -7,6 +7,7 @@ from app.utils.redis_client import (
     get_refresh_token,
     delete_refresh_token,
 )
+from app.utils.id_generator import make_id
 
 __all__ = [
     "hash_password",
@@ -19,4 +20,5 @@ __all__ = [
     "store_refresh_token",
     "get_refresh_token",
     "delete_refresh_token",
+    "make_id"
 ]

@@ -1,17 +1,16 @@
-import uuid
 from datetime import datetime, timezone
 from sqlalchemy import String, Boolean, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
-
+from app.utils.id_generator import make_id 
 
 class User(Base):
     __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(
-        String(36),
+        String(40),
         primary_key=True,
-        default=lambda: str(uuid.uuid4()),
+        default=lambda: make_id("usr"),
     )
     email: Mapped[str] = mapped_column(
         String(255),
