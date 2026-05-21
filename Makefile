@@ -1,4 +1,4 @@
-.PHONY: help up down build logs shell test migrate audit
+.PHONY: help up down build logs shell test migrate audit audit-dev logs-worker
 
 help:
 	@echo ""
@@ -13,6 +13,7 @@ help:
 	@echo "  make migrate    Apply all pending Alembic migrations"
 	@echo "  make audit      Scan dependencies for known vulnerabilities"
 	@echo "  make audit-dev  Scan development dependencies for vulnerabilities"
+	@echo "  make logs-worker  Follow live logs from the worker container"
 	@echo ""
 
 up:
@@ -41,3 +42,6 @@ audit:
 
 audit-dev:
 	pip-audit -r backend/requirements-dev.txt
+
+logs-worker:
+	docker compose logs -f worker

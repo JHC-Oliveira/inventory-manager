@@ -1,0 +1,9 @@
+# Messaging
+aio-pika==9.4.3
+
+# Logging
+structlog==25.1.0
+
+# Settings
+pydantic-settings==2.8.0
+python-dotenv==1.2.2
