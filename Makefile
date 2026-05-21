@@ -14,6 +14,8 @@ help:
 	@echo "  make audit      Scan dependencies for known vulnerabilities"
 	@echo "  make audit-dev  Scan development dependencies for vulnerabilities"
 	@echo "  make logs-worker  Follow live logs from the worker container"
+	@echo "  make test-worker  Run the worker test suite"
+	@echo "  make shell-worker Open a shell inside the worker container"
 	@echo ""
 
 up:
@@ -32,7 +34,7 @@ shell:
 	docker compose exec api bash
 
 test:
-	docker compose exec api pytest tests -v
+	docker compose exec api pytest tests -v &&  docker compose exec worker pytest tests -v
 
 migrate:
 	docker compose exec api alembic upgrade head
@@ -45,3 +47,9 @@ audit-dev:
 
 logs-worker:
 	docker compose logs -f worker
+
+test-worker:
+	docker compose exec worker pytest tests -v
+
+shell-worker:
+	docker compose exec worker sh
