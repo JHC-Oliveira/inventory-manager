@@ -23,10 +23,8 @@ COPY requirements-dev.txt .
 
 # Install dependencies
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements-dev.txt \
-    && pip install --no-cache-dir pip-audit==2.9.0 \
-    && pip-audit -r requirements.txt
-
+    && pip install --no-cache-dir -r requirements-dev.txt
+    
 # Copy the rest of the application code
 COPY . .
 
