@@ -6,11 +6,12 @@ from sqlalchemy import select, func
 from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductUpdate, ProductListResponse, ProductResponse
 
-from app.utils.redis_client import cache_get, cache_set
+from app.utils.redis_client import cache_get, cache_set, cache_delete_pattern
 
 logger = structlog.get_logger()
 
 PRODUCTS_CACHE_TTL = 300
+PRODUCTS_CACHE_PATTERN = "products:list:*"
 
 class ProductService:
 
@@ -44,7 +45,19 @@ class ProductService:
         await self.db.flush()   # get the generated id
         await self.db.commit()  # persist to DB
 
-        logger.info("product_created", product_id=product.id, sku=product.sku, created_by=created_by)
+        await cache_delete_pattern(PRODUCTS_CACHE_PATTERN)
+
+        logger.info(
+            "product_created",
+            product_id=product.id,
+            sku=product.sku,
+            created_by=created_by
+        )
+        logger.info(
+            "products_cache_invalidated",
+            pattern=PRODUCTS_CACHE_PATTERN,
+            reason="product_created",
+        )
 
         return product
 
@@ -173,7 +186,20 @@ class ProductService:
 
         await self.db.commit()
 
-        logger.info("product_updated", product_id=product.id, changes=list(changes.keys()))
+        await cache_delete_pattern(PRODUCTS_CACHE_PATTERN)
+
+        logger.info(
+            "product_updated",
+            product_id=product.id, 
+            changes=list(changes.keys())
+        )
+        
+        logger.info(
+            "products_cache_invalidated",
+            pattern=PRODUCTS_CACHE_PATTERN,
+            reason="product_updated",
+            product_id=product.id,
+        )
 
         return product
 
@@ -187,4 +213,16 @@ class ProductService:
         product.is_active = False
         await self.db.commit()
 
-        logger.info("product_deleted", product_id=product.id, sku=product.sku)
+        await cache_delete_pattern(PRODUCTS_CACHE_PATTERN)
+        
+        logger.info(
+            "product_deleted",
+            product_id=product.id,
+            sku=product.sku
+        )
+        logger.info(
+            "products_cache_invalidated",
+            pattern=PRODUCTS_CACHE_PATTERN,
+            reason="product_deleted",
+            product_id=product.id,
+        )
