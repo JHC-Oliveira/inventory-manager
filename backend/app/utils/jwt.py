@@ -1,7 +1,9 @@
 from datetime import datetime, timezone, timedelta
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError, ExpiredSignatureError
 from app.config import get_settings
 from app.schemas.user import TokenData
+
 
 settings = get_settings()
 
@@ -49,7 +51,7 @@ def verify_token(token: str, expected_type: str) -> TokenData:
             token,
             settings.secret_key,
             algorithms=[settings.algorithm],
-        ) 
+        )
 
         user_id: str | None = payload.get("sub")
         token_type: str | None = payload.get("type")
@@ -63,5 +65,7 @@ def verify_token(token: str, expected_type: str) -> TokenData:
 
         return TokenData(user_id=user_id, is_admin=is_admin)
 
-    except JWTError:
-        raise ValueError("Token is invalid or has expired")
+    except ExpiredSignatureError:
+        raise ValueError("Token has expired")
+    except InvalidTokenError:
+        raise ValueError("Token is invalid")
