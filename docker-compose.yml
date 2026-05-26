@@ -20,6 +20,21 @@ services:
     networks:
       - inventory_network
     restart: unless-stopped
+  
+  # -------- Worker Service ------------
+  worker:
+    build: ./worker
+    container_name: inventory_worker
+    env_file:
+      - ./backend/.env
+    environment:
+      PYTHONPATH: /app
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - inventory_network
+    restart: unless-stopped
 
   # --------- PostgreSQL -------------
   postgres:
