@@ -6,8 +6,11 @@ from sqlalchemy import select, func
 from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductUpdate, ProductListResponse, ProductResponse
 
+from app.utils.redis_client import cache_get, cache_set
+
 logger = structlog.get_logger()
 
+PRODUCTS_CACHE_TTL = 300
 
 class ProductService:
 
@@ -60,7 +63,7 @@ class ProductService:
         product = result.scalar_one_or_none()
 
         if not product:
-            logger.warning(             #warning
+            logger.warning(            
             "product_not_found",
             product_id=product_id
         )
@@ -79,6 +82,26 @@ class ProductService:
     ) -> ProductListResponse:
         """Return a paginated list of products."""
 
+        cache_key = f"products:list:{page}:{page_size}:{include_inactive}"
+
+        cached_data = await cache_get(cache_key)
+        if cached_data is not None:
+            logger.info(
+                "products_cache_hit",
+                cache_key=cache_key,
+                page=page,
+                page_size=page_size,
+                include_inactive=include_inactive,
+            )
+            return ProductListResponse(**cached_data)
+
+        logger.info(
+            "products_cache_miss",
+            cache_key=cache_key,
+            page=page,
+            page_size=page_size,
+            include_inactive=include_inactive,
+        )
         # 1. Base query — filter inactive unless admin requests them
         query = select(Product)
         if not include_inactive:
@@ -102,13 +125,28 @@ class ProductService:
         # 4. Calculate total pages
         total_pages = math.ceil(total / page_size) if total > 0 else 1
 
-        return ProductListResponse(
+        response = ProductListResponse(
             items=[ProductResponse.model_validate(p) for p in products],
             total=total,
             page=page,
             page_size=page_size,
             total_pages=total_pages,
         )
+        
+        await cache_set(
+            cache_key,
+            response.model_dump(mode="json"),
+            PRODUCTS_CACHE_TTL,
+        )
+
+        logger.info(
+            "products_cache_set",
+            cache_key=cache_key,
+            ttl=PRODUCTS_CACHE_TTL,
+            item_count=len(response.items),
+        )
+
+        return response
 
     # -------------------------------------------------------------------------
     # UPDATE
