@@ -48,7 +48,7 @@ services:
     ports:
       - "${POSTGRES_PORT}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U REDACTED_USER -d inventorydb"]
+      test: ["CMD-SHELL", "pg_isready -U inventoryuser -d inventorydb"]
       interval: 10s
       timeout: 5s
       retries: 5
