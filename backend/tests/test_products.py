@@ -1,4 +1,5 @@
 from httpx import AsyncClient
+from unittest.mock import AsyncMock, patch
 
 # Reusable product payload
 PRODUCT_PAYLOAD = {
@@ -235,3 +236,130 @@ async def test_regular_user_cannot_delete_product(
         headers={"Authorization": f"Bearer {user_token}"},
     )
     assert response.status_code == 403
+    
+#-------------------------------------------------------------    
+#                    Redis cache tests
+#-------------------------------------------------------------
+
+# -------------------- Cache hit -----------------------------
+
+async def test_get_products_cache_hit_returns_cached_response(
+    client: AsyncClient,
+    user_token: str,
+):
+    cached_payload = {
+        "items": [
+            {
+                "id": "prd_test_123",
+                "name": "Cached T-Shirt",
+                "description": "From Redis cache",
+                "sku": "CACHED-SKU-1",
+                "price": "19.99",
+                "quantity": 42,
+                "low_stock_threshold": 5,
+                "is_active": True,
+                "is_low_stock": False,
+                "created_by": "usr_test_123",
+                "created_at": "2026-05-26T12:00:00",
+                "updated_at": "2026-05-26T12:00:00",
+            }
+        ],
+        "total": 1,
+        "page": 1,
+        "page_size": 10,
+        "total_pages": 1,
+    }
+
+    with patch("app.services.product_service.cache_get", new=AsyncMock(return_value=cached_payload)) as mock_cache_get, \
+         patch("app.services.product_service.cache_set", new=AsyncMock()) as mock_cache_set:
+
+        response = await client.get(
+            "/products",
+            headers={"Authorization": f"Bearer {user_token}"},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["sku"] == "CACHED-SKU-1"
+
+    mock_cache_get.assert_awaited_once()
+    mock_cache_set.assert_not_awaited()
+    
+    
+# ----------------------- Cache miss tests -----------------------
+
+async def test_get_products_cache_miss_sets_cache(
+    client: AsyncClient,
+    admin_token: str,
+):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers)
+
+    with patch("app.services.product_service.cache_get", new=AsyncMock(return_value=None)) as mock_cache_get, \
+         patch("app.services.product_service.cache_set", new=AsyncMock()) as mock_cache_set:
+
+        response = await client.get("/products", headers=headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+
+    mock_cache_get.assert_awaited_once()
+    mock_cache_set.assert_awaited_once()
+    
+    
+# ----------------------- Create invalidation test --------------------------
+
+async def test_create_product_invalidates_products_cache(
+    client: AsyncClient,
+    admin_token: str,
+):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    with patch("app.services.product_service.cache_delete_pattern", new=AsyncMock()) as mock_cache_delete_pattern:
+        response = await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers)
+
+    assert response.status_code == 201
+    mock_cache_delete_pattern.assert_awaited_once_with("products:list:*")
+    
+    
+# ---------------------- Update invalidation test ---------------------------
+async def test_update_product_invalidates_products_cache(
+    client: AsyncClient,
+    admin_token: str,
+):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    create = await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers)
+    product_id = create.json()["id"]
+
+    with patch("app.services.product_service.cache_delete_pattern", new=AsyncMock()) as mock_cache_delete_pattern:
+        response = await client.put(
+            f"/products/{product_id}",
+            json={"price": "39.99"},
+            headers=headers,
+        )
+
+    assert response.status_code == 200
+    mock_cache_delete_pattern.assert_awaited_once_with("products:list:*")
+    
+    
+# --------------------------- Delete invalidation test -------------------------
+
+async def test_delete_product_invalidates_products_cache(
+    client: AsyncClient,
+    admin_token: str,
+):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    create = await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers)
+    product_id = create.json()["id"]
+
+    with patch("app.services.product_service.cache_delete_pattern", new=AsyncMock()) as mock_cache_delete_pattern:
+        response = await client.delete(f"/products/{product_id}", headers=headers)
+
+    assert response.status_code == 204
+    mock_cache_delete_pattern.assert_awaited_once_with("products:list:*")

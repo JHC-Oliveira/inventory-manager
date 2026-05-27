@@ -32,15 +32,12 @@ async def lifespan(app: FastAPI):
     logger.info("application_starting", env=settings.app_env)
     await init_redis()
     logger.info("redis_connected")
-    await connect_rabbitmq()
-    logger.info("rabbitmq_connected")       
+    await connect_rabbitmq()      
     yield
     # ── Shutdown ─────────────────────────────────────────
     await close_redis()
-    logger.info("application_stopped")
     await close_rabbitmq()                                               
-    logger.info("rabbitmq_disconnected")
-
+    logger.info("application_stopped")
 
 app = FastAPI(
     title="Inventory Manager API",
@@ -57,7 +54,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins_list,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
 

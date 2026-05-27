@@ -1,4 +1,5 @@
 from httpx import AsyncClient
+from unittest.mock import AsyncMock, patch
 
 # Reusable helper — creates a product and returns the full response dict
 async def create_product(client: AsyncClient, admin_token: str, quantity: int = 0) -> dict:
@@ -314,3 +315,145 @@ async def test_movement_history_product_not_found(client: AsyncClient, admin_tok
     )
 
     assert response.status_code == 404
+    
+#-------------------------------------------------------------    
+#                    Movement history cache tests
+#-------------------------------------------------------------
+
+# --------------------- History cache hit --------------------
+
+async def test_movement_history_cache_hit_returns_cached_response(
+    client: AsyncClient,
+    admin_token: str,
+):
+    product = await create_product(client, admin_token, quantity=0)
+
+    cached_payload = {
+        "items": [
+            {
+                "id": "stk_test_1",
+                "product_id": product["id"],
+                "product_sku": product["sku"],
+                "movement_type": "SHIP",
+                "quantity_change": -5,
+                "quantity_before": 20,
+                "quantity_after": 15,
+                "note": "From Redis cache",
+                "created_by": "usr_test_123",
+                "created_at": "2026-05-27T00:00:00",
+            }
+        ],
+        "total": 1,
+        "page": 1,
+        "page_size": 10,
+        "total_pages": 1,
+    }
+
+    with patch("app.services.stock_service.cache_get", new=AsyncMock(return_value=cached_payload)) as mock_cache_get, \
+         patch("app.services.stock_service.cache_set", new=AsyncMock()) as mock_cache_set:
+
+        response = await client.get(
+            f"/stock/{product['id']}/history",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["movement_type"] == "SHIP"
+    assert data["items"][0]["note"] == "From Redis cache"
+
+    mock_cache_get.assert_awaited_once()
+    mock_cache_set.assert_not_awaited()
+    
+    
+# --------------------- History cache miss -----------------------
+
+async def test_movement_history_cache_miss_sets_cache(
+    client: AsyncClient,
+    admin_token: str,
+):
+    product = await create_product(client, admin_token, quantity=0)
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    await client.post(
+        f"/stock/{product['id']}/adjust",
+        json={"movement_type": "RECEIVE", "quantity_change": 25},
+        headers=headers,
+    )
+
+    with patch("app.services.stock_service.cache_get", new=AsyncMock(return_value=None)) as mock_cache_get, \
+         patch("app.services.stock_service.cache_set", new=AsyncMock()) as mock_cache_set:
+
+        response = await client.get(
+            f"/stock/{product['id']}/history",
+            headers=headers,
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+
+    mock_cache_get.assert_awaited_once()
+    mock_cache_set.assert_awaited_once()
+
+    await_args = mock_cache_set.await_args
+    assert await_args is not None
+    
+    args = await_args.args
+    assert args[0].startswith(f"stock:history:{product['id']}:")
+    assert args[2] == 60
+    
+    
+# ----------------- Adjust stock invalidates history cache ---------------
+
+async def test_adjust_stock_invalidates_history_cache(
+    client: AsyncClient,
+    admin_token: str,
+):
+    product = await create_product(client, admin_token, quantity=10)
+
+    with patch("app.services.stock_service.cache_delete_pattern", new=AsyncMock()) as mock_cache_delete_pattern:
+        response = await client.post(
+            f"/stock/{product['id']}/adjust",
+            json={
+                "movement_type": "RECEIVE",
+                "quantity_change": 5,
+                "note": "Restock",
+            },
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+    assert response.status_code == 200
+    mock_cache_delete_pattern.assert_awaited_once_with(
+        f"stock:history:{product['id']}:*"
+    )
+    
+    
+# ----------- Movement history regular user -----------------
+
+async def test_movement_history_cache_hit_regular_user_can_view(
+    client: AsyncClient,
+    admin_token: str,
+    user_token: str,
+):
+    product = await create_product(client, admin_token, quantity=0)
+
+    cached_payload = {
+        "items": [],
+        "total": 0,
+        "page": 1,
+        "page_size": 10,
+        "total_pages": 1,
+    }
+
+    with patch("app.services.stock_service.cache_get", new=AsyncMock(return_value=cached_payload)) as mock_cache_get:
+        response = await client.get(
+            f"/stock/{product['id']}/history",
+            headers={"Authorization": f"Bearer {user_token}"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 0
+    mock_cache_get.assert_awaited_once()

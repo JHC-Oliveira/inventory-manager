@@ -6,8 +6,12 @@ from sqlalchemy import select, func
 from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductUpdate, ProductListResponse, ProductResponse
 
+from app.utils.redis_client import cache_get, cache_set, cache_delete_pattern
+
 logger = structlog.get_logger()
 
+PRODUCTS_CACHE_TTL = 300
+PRODUCTS_CACHE_PATTERN = "products:list:*"
 
 class ProductService:
 
@@ -41,7 +45,19 @@ class ProductService:
         await self.db.flush()   # get the generated id
         await self.db.commit()  # persist to DB
 
-        logger.info("product_created", product_id=product.id, sku=product.sku, created_by=created_by)
+        await cache_delete_pattern(PRODUCTS_CACHE_PATTERN)
+
+        logger.info(
+            "product_created",
+            product_id=product.id,
+            sku=product.sku,
+            created_by=created_by
+        )
+        logger.info(
+            "products_cache_invalidated",
+            pattern=PRODUCTS_CACHE_PATTERN,
+            reason="product_created",
+        )
 
         return product
 
@@ -60,7 +76,7 @@ class ProductService:
         product = result.scalar_one_or_none()
 
         if not product:
-            logger.warning(             #warning
+            logger.warning(            
             "product_not_found",
             product_id=product_id
         )
@@ -79,6 +95,26 @@ class ProductService:
     ) -> ProductListResponse:
         """Return a paginated list of products."""
 
+        cache_key = f"products:list:{page}:{page_size}:{include_inactive}"
+
+        cached_data = await cache_get(cache_key)
+        if cached_data is not None:
+            logger.info(
+                "products_cache_hit",
+                cache_key=cache_key,
+                page=page,
+                page_size=page_size,
+                include_inactive=include_inactive,
+            )
+            return ProductListResponse(**cached_data)
+
+        logger.info(
+            "products_cache_miss",
+            cache_key=cache_key,
+            page=page,
+            page_size=page_size,
+            include_inactive=include_inactive,
+        )
         # 1. Base query — filter inactive unless admin requests them
         query = select(Product)
         if not include_inactive:
@@ -102,13 +138,28 @@ class ProductService:
         # 4. Calculate total pages
         total_pages = math.ceil(total / page_size) if total > 0 else 1
 
-        return ProductListResponse(
+        response = ProductListResponse(
             items=[ProductResponse.model_validate(p) for p in products],
             total=total,
             page=page,
             page_size=page_size,
             total_pages=total_pages,
         )
+        
+        await cache_set(
+            cache_key,
+            response.model_dump(mode="json"),
+            PRODUCTS_CACHE_TTL,
+        )
+
+        logger.info(
+            "products_cache_set",
+            cache_key=cache_key,
+            ttl=PRODUCTS_CACHE_TTL,
+            item_count=len(response.items),
+        )
+
+        return response
 
     # -------------------------------------------------------------------------
     # UPDATE
@@ -135,7 +186,20 @@ class ProductService:
 
         await self.db.commit()
 
-        logger.info("product_updated", product_id=product.id, changes=list(changes.keys()))
+        await cache_delete_pattern(PRODUCTS_CACHE_PATTERN)
+
+        logger.info(
+            "product_updated",
+            product_id=product.id, 
+            changes=list(changes.keys())
+        )
+        
+        logger.info(
+            "products_cache_invalidated",
+            pattern=PRODUCTS_CACHE_PATTERN,
+            reason="product_updated",
+            product_id=product.id,
+        )
 
         return product
 
@@ -149,4 +213,16 @@ class ProductService:
         product.is_active = False
         await self.db.commit()
 
-        logger.info("product_deleted", product_id=product.id, sku=product.sku)
+        await cache_delete_pattern(PRODUCTS_CACHE_PATTERN)
+        
+        logger.info(
+            "product_deleted",
+            product_id=product.id,
+            sku=product.sku
+        )
+        logger.info(
+            "products_cache_invalidated",
+            pattern=PRODUCTS_CACHE_PATTERN,
+            reason="product_deleted",
+            product_id=product.id,
+        )
