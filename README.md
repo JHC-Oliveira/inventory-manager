@@ -339,5 +339,3 @@ This project shows more than CRUD. It demonstrates:
 - transactional write handling;
 - Dockerised local development;
 - meaningful automated tests.
-
-That is the kind of backend project recruiters can scan quickly and understand.
