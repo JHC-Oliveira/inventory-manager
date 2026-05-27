@@ -1,4 +1,6 @@
 import json
+from urllib.parse import urlsplit
+
 import structlog
 import aio_pika
 from aio_pika.abc import AbstractRobustConnection, AbstractChannel
@@ -14,6 +16,11 @@ _channel: AbstractChannel | None = None
 LOW_STOCK_EXCHANGE = "inventory"
 LOW_STOCK_QUEUE    = "low_stock_alerts"
 
+def _redact_amqp_url(url: str) -> str:
+    parsed = urlsplit(url)
+    host = parsed.hostname or "unknown"
+    port = parsed.port or 5672
+    return f"{parsed.scheme}://***:***@{host}:{port}"
 
 async def connect_rabbitmq() -> None:
     """
@@ -42,7 +49,13 @@ async def connect_rabbitmq() -> None:
     # Bind queue to exchange with routing key matching the queue name
     await queue.bind(exchange, routing_key=LOW_STOCK_QUEUE)
 
-    logger.info("rabbitmq_connected", url=settings.rabbitmq_url)
+    logger.info(
+        "rabbitmq_connected",
+        url=_redact_amqp_url(settings.rabbitmq_url),
+        exchange=LOW_STOCK_EXCHANGE,
+        queue=LOW_STOCK_QUEUE,
+    )
+
 
 
 async def close_rabbitmq() -> None:
@@ -65,7 +78,7 @@ async def publish_low_stock_alert(
     Called by the stock service whenever quantity <= threshold.
     Fire-and-forget: the API does not wait for a consumer.
     """
-    if _channel is None:
+    if _channel is None or _channel.is_closed:
         logger.error("rabbitmq_publish_failed", reason="channel not initialised")
         return
 

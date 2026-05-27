@@ -9,7 +9,6 @@ from app.database import Base, get_db
 
 @pytest_asyncio.fixture(scope="function")
 async def client():
-    # Fresh engine + DB per test — guaranteed isolation
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -20,7 +19,6 @@ async def client():
         expire_on_commit=False,
     )
 
-    # Create all tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -30,25 +28,32 @@ async def client():
 
     app.dependency_overrides[get_db] = override_get_db
 
-     # Mock for Redis
-    with patch("app.utils.redis_client.redis_client") as mock_redis:
-        mock_redis.setex = AsyncMock(return_value=True)
-        mock_redis.get = AsyncMock(return_value=None)
-        mock_redis.delete = AsyncMock(return_value=True)
+    # Mock for Redis
+    mock_redis = AsyncMock()
+    mock_redis.setex = AsyncMock(return_value=True)
+    mock_redis.get = AsyncMock(return_value=None)
+    mock_redis.delete = AsyncMock(return_value=1)
+    mock_redis.scan = AsyncMock(return_value=(0, []))
+    mock_redis.aclose = AsyncMock(return_value=None)
 
-        with patch("app.utils.redis_client.get_redis", AsyncMock(return_value=mock_redis)):
-            
-            # Mock for RabbitMQ
-            with patch(
-                "app.utils.rabbitmq.publish_low_stock_alert",
-                new=AsyncMock(return_value=None),
-            ):
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://localhost"
-                ) as ac:
-                    yield ac                                   # one single yield
+    with patch("app.utils.redis_client.get_redis", new=AsyncMock(return_value=mock_redis)):
 
+        # Mock for RabbitMQ
+        with patch(
+            "app.utils.rabbitmq.publish_low_stock_alert",
+            new=AsyncMock(return_value=None),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://localhost"
+            ) as ac:
+                yield ac
+
+    app.dependency_overrides.clear()
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
 
     app.dependency_overrides.clear()
 

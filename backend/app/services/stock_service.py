@@ -7,9 +7,12 @@ from app.models.product import Product
 from app.models.stock_movement import StockMovement
 from app.schemas.stock_movement import StockAdjustRequest, StockMovementListResponse, StockMovementResponse
 from app.utils.rabbitmq import publish_low_stock_alert
+from app.utils.redis_client import cache_get, cache_set, cache_delete_pattern
 
 logger = structlog.get_logger()
 
+STOCK_HISTORY_CACHE_TTL = 60
+STOCK_HISTORY_CACHE_PATTERN = "stock:history:{product_id}:*"
 
 class StockService:
     def __init__(self, db: AsyncSession):
@@ -86,6 +89,17 @@ class StockService:
             await self.db.commit()
             await self.db.refresh(movement)
             
+            await cache_delete_pattern(
+                STOCK_HISTORY_CACHE_PATTERN.format(product_id=product_id)
+            )
+            
+            logger.info(
+                "stock_history_cache_invalidated",
+                pattern=STOCK_HISTORY_CACHE_PATTERN.format(product_id=product_id),
+                reason="stock_adjusted",
+                product_id=product_id,
+            )
+            
             # 7. Publish low stock alert AFTER commit — fire and forget
             if product.is_low_stock:
                 await publish_low_stock_alert(
@@ -121,6 +135,28 @@ class StockService:
         Returns paginated movement history for a product.
         Most recent movements first.
         """
+        cache_key = f"stock:history:{product_id}:{page}:{page_size}"
+
+        cached_data = await cache_get(cache_key)
+        
+        if cached_data is not None:
+            logger.info(
+                "stock_history_cache_hit",
+                cache_key=cache_key,
+                product_id=product_id,
+                page=page,
+                page_size=page_size,
+            )
+            return StockMovementListResponse(**cached_data)
+        
+        logger.info(
+            "stock_history_cache_miss",
+            cache_key=cache_key,
+            product_id=product_id,
+            page=page,
+            page_size=page_size,
+        )
+        
         # Verify product exists
         product_result = await self.db.execute(
             select(Product).where(Product.id == product_id)
@@ -147,10 +183,26 @@ class StockService:
         )
         movements = list(movements_result.scalars().all())
 
-        return StockMovementListResponse(
+        response = StockMovementListResponse(
             items=[StockMovementResponse.model_validate(m) for m in movements],
             total=total,
             page=page,
             page_size=page_size,
             total_pages=math.ceil(total / page_size) if total > 0 else 1,
         )
+        
+        await cache_set(
+            cache_key,
+            response.model_dump(mode="json"),
+            STOCK_HISTORY_CACHE_TTL,
+        )
+
+        logger.info(
+            "stock_history_cache_set",
+            cache_key=cache_key,
+            ttl=STOCK_HISTORY_CACHE_TTL,
+            item_count=len(response.items),
+            product_id=product_id,
+        )
+
+        return response
