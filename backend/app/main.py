@@ -11,6 +11,7 @@ from app.routers.auth import router as auth_router
 from app.routers.product import router as product_router
 from app.routers.stock import router as stock_router
 from app.routers.orders import router as orders_router
+from app.routers.reports import router as report_router
 
 # ------------ Imports for Test Route ------------
 from app.models.user import User
@@ -72,6 +73,7 @@ app.include_router(auth_router)
 app.include_router(product_router)
 app.include_router(stock_router)
 app.include_router(orders_router)
+app.include_router(report_router)
 
 # ------------ Protected Test Route ------------
 
