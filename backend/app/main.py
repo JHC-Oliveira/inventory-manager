@@ -6,10 +6,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
+
+from app.database import AsyncSessionLocal
 
 from app.config import get_settings
-from app.utils.redis_client import init_redis, close_redis
-from app.utils.rabbitmq import connect_rabbitmq, close_rabbitmq
+from app.utils.redis_client import init_redis, close_redis, get_redis
+from app.utils.rabbitmq import connect_rabbitmq, close_rabbitmq, is_rabbitmq_connected
 from app.routers.auth import router as auth_router
 from app.routers.product import router as product_router
 from app.routers.stock import router as stock_router
@@ -151,11 +154,57 @@ async def get_me(current_user: User = Depends(get_current_user)):
 @app.get("/health", tags=["System"])
 async def health_check():
     """
-    Confirms the API is alive and which environment it's running in.
+    Confirms the API and its dependencies are healthy.
     Used by Docker, monitoring tools, and load balancers.
     """
-    return {
-        "status": "healthy",
+    checks = {
         "app": settings.app_name,
         "env": settings.app_env,
+        "database": "unhealthy",
+        "redis": "unhealthy",
+        "rabbitmq": "unhealthy",
     }
+
+    overall_status = "healthy"
+    status_code = status.HTTP_200_OK
+
+    # ---------------- Database ----------------
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        checks["database"] = "healthy"
+    except Exception as exc:
+        checks["database"] = "unhealthy"
+        overall_status = "unhealthy"
+        status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        logger.warning("health_database_failed", error=str(exc))
+
+    # ---------------- Redis ----------------
+    try:
+        redis = await get_redis()
+        await redis.ping()
+        checks["redis"] = "healthy"
+    except Exception as exc:
+        checks["redis"] = "unhealthy"
+        overall_status = "unhealthy"
+        status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        logger.warning("health_redis_failed", error=str(exc))
+
+    # ---------------- RabbitMQ ----------------
+    try:
+        if not is_rabbitmq_connected():
+            raise RuntimeError("RabbitMQ connection is not available")
+        checks["rabbitmq"] = "healthy"
+    except Exception as exc:
+        checks["rabbitmq"] = "unhealthy"
+        overall_status = "unhealthy"
+        status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        logger.warning("health_rabbitmq_failed", error=str(exc))
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": overall_status,
+            **checks,
+        },
+    )

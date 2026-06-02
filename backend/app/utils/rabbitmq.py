@@ -107,3 +107,6 @@ async def publish_low_stock_alert(
         current_quantity=current_quantity,
         threshold=threshold,
     )
+    
+def is_rabbitmq_connected() -> bool:
+    return _connection is not None and not _connection.is_closed
