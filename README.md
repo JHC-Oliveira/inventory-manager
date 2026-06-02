@@ -223,6 +223,100 @@ docker compose exec api alembic upgrade head
 | GET    | `/api/v1/orders/{id}`        | User  | Get a single order              |
 | PATCH  | `/api/v1/orders/{id}/cancel` | Admin | Cancel order (restores stock)   |
 
+### Reports — `/api/v1/reports`
+
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| GET | `/api/v1/reports/stock-summary` | Admin | Summary of inventory quantities and values |
+| GET | `/api/v1/reports/low-stock` | Admin | Products below threshold |
+| GET | `/api/v1/reports/top-products` | Admin | Best-performing products |
+| GET | `/api/v1/reports/movement-history` | Admin | Filtered stock movement reporting |
+
+### System
+
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| GET | `/health` | None | Dependency-aware health check |
+| GET | `/api/v1/me` | User | Return the current authenticated user |
+
+---
+
+## Error response format
+
+The API uses a consistent JSON error shape:
+
+```json
+{
+  "error": "not_found",
+  "message": "Product not found",
+  "status_code": 404
+}
+```
+
+Common error types include:
+
+- `validation_error`
+- `unauthorized`
+- `forbidden`
+- `not_found`
+- `conflict`
+- `bad_request`
+- `internal_server_error`
+- `rate_limit_exceeded`
+
+This makes client-side handling and debugging more predictable.
+
+---
+
+## Health check
+
+The `/health` endpoint verifies the status of the main dependencies:
+
+- PostgreSQL
+- Redis
+- RabbitMQ
+
+Example healthy response:
+
+```json
+{
+  "status": "healthy",
+  "app": "Inventory Manager API",
+  "env": "dev",
+  "database": "healthy",
+  "redis": "healthy",
+  "rabbitmq": "healthy"
+}
+```
+
+If one of those dependencies is unavailable, the endpoint returns `503 Service Unavailable`.
+
+---
+
+## Observability
+
+### Structured logging
+
+Requests are logged using `structlog` with:
+
+- request method
+- path
+- status code
+- duration in milliseconds
+- request ID
+
+Each response includes an `X-Request-ID` header so a request can be traced through logs more easily.
+
+### Rate limiting
+
+The API uses Redis-backed rate limiting middleware to protect endpoints from bursts of traffic. When the limit is exceeded, the API returns `429 Too Many Requests`.
+
+Example headers:
+
+- `X-RateLimit-Limit`
+- `X-RateLimit-Remaining`
+- `X-RateLimit-Reset`
+
 ---
 
 ## Current Architecture
@@ -304,6 +398,7 @@ See `backend/.env.example` for the full list. Key variables:
 | `RABBITMQ_URL`                | RabbitMQ AMQP connection string    |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | JWT access token lifetime          |
 | `REFRESH_TOKEN_EXPIRE_DAYS`   | JWT refresh token lifetime         |
+| `API_PREFIX` | API version prefix such as `/api/v1` |
 
 ---
 
@@ -332,10 +427,14 @@ Current backend test total: **79 passing tests**.
 
 This project shows more than CRUD. It demonstrates:
 
-- async FastAPI design;
-- service-layer architecture;
-- event-driven messaging with RabbitMQ;
-- Redis caching with invalidation;
+- asynchronous FastAPI architecture;
+- service-layer separation;
 - transactional write handling;
-- Dockerised local development;
-- meaningful automated tests.
+- Redis caching with invalidation;
+- JWT auth with refresh token revocation;
+- RabbitMQ producer/consumer flow;
+- structured logging and request tracing;
+- dependency-aware health checks;
+- rate limiting;
+- Docker-based local development;
+- automated async testing.
