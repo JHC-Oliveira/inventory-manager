@@ -130,16 +130,17 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 # ------------ Routers ------------
+API_PREFIX = "/api/v1"
 
-app.include_router(auth_router)
-app.include_router(product_router)
-app.include_router(stock_router)
-app.include_router(orders_router)
-app.include_router(report_router)
+app.include_router(auth_router, prefix=API_PREFIX)
+app.include_router(product_router, prefix=API_PREFIX)
+app.include_router(stock_router, prefix=API_PREFIX)
+app.include_router(orders_router, prefix=API_PREFIX)
+app.include_router(report_router, prefix=API_PREFIX)
 
 # ------------ Protected Test Route ------------
 
-@app.get("/me", response_model=UserResponse, tags=["Users"])
+@app.get(f"{API_PREFIX}/me", response_model=UserResponse, tags=["Users"])
 async def get_me(current_user: User = Depends(get_current_user)):
     """Returns the currently authenticated user. Protected route."""
     return UserResponse.model_validate(current_user)
