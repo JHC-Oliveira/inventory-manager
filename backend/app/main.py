@@ -10,6 +10,8 @@ from sqlalchemy import text
 
 from app.database import AsyncSessionLocal
 
+from app.middleware.request_logging import RequestLoggingMiddleware
+
 from app.config import get_settings
 from app.utils.redis_client import init_redis, close_redis, get_redis
 from app.utils.rabbitmq import connect_rabbitmq, close_rabbitmq, is_rabbitmq_connected
@@ -65,7 +67,7 @@ app = FastAPI(
 
 # ------- Middleware (applied to every request, in order) --------
 
-# CORS — added first in code, runs second on requests
+# CORS — added first in code, runs third on requests
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins_list,
@@ -74,11 +76,14 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
-# TrustedHost — added second in code, runs FIRST on requests
+# TrustedHost — added second in code, runs second on requests
 app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=["localhost", "127.0.0.1"],
 )
+
+# RequestLogging — added third in code, runs first on requests
+app.add_middleware(RequestLoggingMiddleware)
 
 # ---------------- Exception handlers ----------------
 
