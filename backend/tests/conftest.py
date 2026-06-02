@@ -4,7 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from unittest.mock import AsyncMock, patch
 
 from app.main import app
+from app.config import get_settings
 from app.database import Base, get_db
+
+API_PREFIX = get_settings().api_prefix
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -66,12 +69,12 @@ async def client():
 @pytest_asyncio.fixture(scope="function")
 async def user_token(client: AsyncClient) -> str:
     """Register a regular user and return their access token."""
-    await client.post("/auth/register", json={
+    await client.post(f"{API_PREFIX}/auth/register", json={
         "email": "user@example.com",
         "password": "StrongPass123",
         "full_name": "Regular User",
     })
-    response = await client.post("/auth/login", data={
+    response = await client.post(f"{API_PREFIX}/auth/login", data={
         "username": "user@example.com",
         "password": "StrongPass123",
     })
@@ -84,7 +87,7 @@ async def admin_token(client: AsyncClient) -> str:
     Register a user then manually flip is_admin=True in the DB.
     Returns their access token.
     """
-    await client.post("/auth/register", json={
+    await client.post(f"{API_PREFIX}/auth/register", json={
         "email": "admin@example.com",
         "password": "AdminPass123",
         "full_name": "Admin User",
@@ -106,7 +109,7 @@ async def admin_token(client: AsyncClient) -> str:
         break
 
     # Log in again — new token will carry is_admin=True
-    response = await client.post("/auth/login", data={
+    response = await client.post(f"{API_PREFIX}/auth/login", data={
         "username": "admin@example.com",
         "password": "AdminPass123",
     })

@@ -188,40 +188,40 @@ docker compose exec api alembic upgrade head
 
 ## API Overview
 
-### Authentication — `/auth`
+### Authentication — `/api/v1/auth`
 
 | Method | Endpoint         | Auth | Description               |
 | ------ | ---------------- | ---- | ------------------------- |
-| POST   | `/auth/register` | None | Register a new user       |
-| POST   | `/auth/login`    | None | Login, returns token pair |
-| POST   | `/auth/refresh`  | None | Get new access token      |
-| POST   | `/auth/logout`   | None | Revoke refresh token      |
+| POST   | `/api/v1/auth/register` | None | Register a new user       |
+| POST   | `/api/v1/auth/login`    | None | Login, returns token pair |
+| POST   | `/api/v1/auth/refresh`  | None | Get new access token      |
+| POST   | `/api/v1/auth/logout`   | None | Revoke refresh token      |
 
-### Products — `/products`
+### Products — `/api/v1/products`
 
 | Method | Endpoint         | Auth  | Description               |
 | ------ | ---------------- | ----- | ------------------------- |
-| POST   | `/products`      | Admin | Create a product          |
-| GET    | `/products`      | User  | List products (paginated) |
-| GET    | `/products/{id}` | User  | Get a single product      |
-| PUT    | `/products/{id}` | Admin | Update a product          |
-| DELETE | `/products/{id}` | Admin | Soft delete a product     |
+| POST   | `/api/v1/products`      | Admin | Create a product          |
+| GET    | `/api/v1/products`      | User  | List products (paginated) |
+| GET    | `/api/v1/products/{id}` | User  | Get a single product      |
+| PUT    | `/api/v1/products/{id}` | Admin | Update a product          |
+| DELETE | `/api/v1/products/{id}` | Admin | Soft delete a product     |
 
-### Stock — `/stock`
+### Stock — `/api/v1/stock`
 
 | Method | Endpoint                      | Auth  | Description                        |
 | ------ | ----------------------------- | ----- | ---------------------------------- |
-| POST   | `/stock/{product_id}/adjust`  | Admin | Adjust stock (RECEIVE/SHIP/ADJUST) |
-| GET    | `/stock/{product_id}/history` | User  | Get movement history (paginated)   |
+| POST   | `/api/v1/stock/{product_id}/adjust`  | Admin | Adjust stock (RECEIVE/SHIP/ADJUST) |
+| GET    | `/api/v1/stock/{product_id}/history` | User  | Get movement history (paginated)   |
 
-### Orders — `/orders`
+### Orders — `/api/v1/orders`
 
 | Method | Endpoint              | Auth  | Description                     |
 | ------ | --------------------- | ----- | ------------------------------- |
-| POST   | `/orders`             | User  | Create an order (deducts stock) |
-| GET    | `/orders`             | User  | List orders (paginated)         |
-| GET    | `/orders/{id}`        | User  | Get a single order              |
-| PATCH  | `/orders/{id}/cancel` | Admin | Cancel order (restores stock)   |
+| POST   | `/api/v1/orders`             | User  | Create an order (deducts stock) |
+| GET    | `/api/v1/orders`             | User  | List orders (paginated)         |
+| GET    | `/api/v1/orders/{id}`        | User  | Get a single order              |
+| PATCH  | `/api/v1/orders/{id}/cancel` | Admin | Cancel order (restores stock)   |
 
 ---
 

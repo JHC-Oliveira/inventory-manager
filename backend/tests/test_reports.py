@@ -1,4 +1,7 @@
 from httpx import AsyncClient
+from app.config import get_settings
+
+API_PREFIX = get_settings().api_prefix
 
 # -----------------------------------------------------------------------------
 # HELPERS
@@ -12,7 +15,7 @@ async def create_product(
     low_stock_threshold: int = 10,
 ) -> dict:
     response = await client.post(
-        "/products",
+        f"{API_PREFIX}/products",
         json={
             "name": f"Product {sku}",
             "sku": sku,
@@ -33,7 +36,7 @@ async def create_order_with_item(
     quantity: int,
 ) -> dict:
     response = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Test Customer",
             "items": [
@@ -65,7 +68,7 @@ async def adjust_stock(
         payload["note"] = note
 
     response = await client.post(
-        f"/stock/{product_id}/adjust",
+        f"{API_PREFIX}/stock/{product_id}/adjust",
         json=payload,
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -80,7 +83,7 @@ async def test_stock_summary_admin_can_view(client: AsyncClient, admin_token: st
     p2 = await create_product(client, admin_token, "SUM-002", quantity=3)
 
     response = await client.get(
-        "/reports/stock-summary",
+        f"{API_PREFIX}/reports/stock-summary",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
@@ -95,14 +98,14 @@ async def test_stock_summary_admin_can_view(client: AsyncClient, admin_token: st
 
 async def test_stock_summary_requires_admin(client: AsyncClient, user_token: str):
     response = await client.get(
-        "/reports/stock-summary",
+        f"{API_PREFIX}/reports/stock-summary",
         headers={"Authorization": f"Bearer {user_token}"},
     )
     assert response.status_code == 403
 
 
 async def test_stock_summary_requires_auth(client: AsyncClient):
-    response = await client.get("/reports/stock-summary")
+    response = await client.get(f"{API_PREFIX}/reports/stock-summary")
     assert response.status_code == 401
 
 
@@ -115,7 +118,7 @@ async def test_low_stock_admin_can_view(client: AsyncClient, admin_token: str):
     await create_product(client, admin_token, "OK-001", quantity=20, low_stock_threshold=5)
 
     response = await client.get(
-        "/reports/low-stock",
+        f"{API_PREFIX}/reports/low-stock",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
@@ -129,7 +132,7 @@ async def test_low_stock_admin_can_view(client: AsyncClient, admin_token: str):
 
 async def test_low_stock_requires_admin(client: AsyncClient, user_token: str):
     response = await client.get(
-        "/reports/low-stock",
+        f"{API_PREFIX}/reports/low-stock",
         headers={"Authorization": f"Bearer {user_token}"},
     )
     assert response.status_code == 403
@@ -146,7 +149,7 @@ async def test_top_products_admin_can_view(client: AsyncClient, admin_token: str
     await create_order_with_item(client, user_token, product["id"], quantity=3)
 
     response = await client.get(
-        "/reports/top-products",
+        f"{API_PREFIX}/reports/top-products",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
@@ -162,7 +165,7 @@ async def test_top_products_admin_can_view(client: AsyncClient, admin_token: str
 
 async def test_top_products_requires_admin(client: AsyncClient, user_token: str):
     response = await client.get(
-        "/reports/top-products",
+        f"{API_PREFIX}/reports/top-products",
         headers={"Authorization": f"Bearer {user_token}"},
     )
     assert response.status_code == 403
@@ -179,7 +182,7 @@ async def test_movement_history_admin_can_view(client: AsyncClient, admin_token:
     await adjust_stock(client, admin_token, product["id"], "SHIP", -2, "Sale")
 
     response = await client.get(
-        "/reports/movement-history",
+        f"{API_PREFIX}/reports/movement-history",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
@@ -202,7 +205,7 @@ async def test_movement_history_pagination(client: AsyncClient, admin_token: str
         await adjust_stock(client, admin_token, product["id"], "RECEIVE", i + 1, f"Move {i + 1}")
 
     response = await client.get(
-        "/reports/movement-history?page=1&page_size=2",
+        f"{API_PREFIX}/reports/movement-history?page=1&page_size=2",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
@@ -217,12 +220,12 @@ async def test_movement_history_pagination(client: AsyncClient, admin_token: str
 
 async def test_movement_history_requires_admin(client: AsyncClient, user_token: str):
     response = await client.get(
-        "/reports/movement-history",
+        f"{API_PREFIX}/reports/movement-history",
         headers={"Authorization": f"Bearer {user_token}"},
     )
     assert response.status_code == 403
 
 
 async def test_movement_history_requires_auth(client: AsyncClient):
-    response = await client.get("/reports/movement-history")
+    response = await client.get(f"{API_PREFIX}/reports/movement-history")
     assert response.status_code == 401

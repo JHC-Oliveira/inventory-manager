@@ -133,7 +133,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 # ------------ Routers ------------
-API_PREFIX = "/api/v1"
+API_PREFIX = settings.api_prefix
 
 app.include_router(auth_router, prefix=API_PREFIX)
 app.include_router(product_router, prefix=API_PREFIX)

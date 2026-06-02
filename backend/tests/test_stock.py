@@ -1,10 +1,13 @@
 from httpx import AsyncClient
 from unittest.mock import AsyncMock, patch
+from app.config import get_settings
+
+API_PREFIX = get_settings().api_prefix
 
 # Reusable helper — creates a product and returns the full response dict
 async def create_product(client: AsyncClient, admin_token: str, quantity: int = 0) -> dict:
     response = await client.post(
-        "/products",
+        f"{API_PREFIX}/products",
         json={
             "name": "Test Product",
             "sku": f"SKU-{quantity}-{id(client)}",
@@ -26,7 +29,7 @@ async def test_receive_stock(client: AsyncClient, admin_token: str):
     product = await create_product(client, admin_token, quantity=0)
 
     response = await client.post(
-        f"/stock/{product['id']}/adjust",
+        f"{API_PREFIX}/stock/{product['id']}/adjust",
         json={
             "movement_type": "RECEIVE",
             "quantity_change": 50,
@@ -49,7 +52,7 @@ async def test_ship_stock(client: AsyncClient, admin_token: str):
     product = await create_product(client, admin_token, quantity=100)
 
     response = await client.post(
-        f"/stock/{product['id']}/adjust",
+        f"{API_PREFIX}/stock/{product['id']}/adjust",
         json={
             "movement_type": "SHIP",
             "quantity_change": -30,
@@ -70,7 +73,7 @@ async def test_adjust_stock_upward(client: AsyncClient, admin_token: str):
     product = await create_product(client, admin_token, quantity=20)
 
     response = await client.post(
-        f"/stock/{product['id']}/adjust",
+        f"{API_PREFIX}/stock/{product['id']}/adjust",
         json={
             "movement_type": "ADJUST",
             "quantity_change": 5,
@@ -89,7 +92,7 @@ async def test_adjust_stock_downward(client: AsyncClient, admin_token: str):
     product = await create_product(client, admin_token, quantity=20)
 
     response = await client.post(
-        f"/stock/{product['id']}/adjust",
+        f"{API_PREFIX}/stock/{product['id']}/adjust",
         json={
             "movement_type": "ADJUST",
             "quantity_change": -3,
@@ -112,7 +115,7 @@ async def test_ship_more_than_available_returns_409(client: AsyncClient, admin_t
     product = await create_product(client, admin_token, quantity=5)
 
     response = await client.post(
-        f"/stock/{product['id']}/adjust",
+        f"{API_PREFIX}/stock/{product['id']}/adjust",
         json={
             "movement_type": "SHIP",
             "quantity_change": -10,
@@ -127,7 +130,7 @@ async def test_receive_with_negative_quantity_returns_422(client: AsyncClient, a
     product = await create_product(client, admin_token, quantity=0)
 
     response = await client.post(
-        f"/stock/{product['id']}/adjust",
+        f"{API_PREFIX}/stock/{product['id']}/adjust",
         json={
             "movement_type": "RECEIVE",
             "quantity_change": -10,
@@ -142,7 +145,7 @@ async def test_ship_with_positive_quantity_returns_422(client: AsyncClient, admi
     product = await create_product(client, admin_token, quantity=100)
 
     response = await client.post(
-        f"/stock/{product['id']}/adjust",
+        f"{API_PREFIX}/stock/{product['id']}/adjust",
         json={
             "movement_type": "SHIP",
             "quantity_change": 10,
@@ -157,7 +160,7 @@ async def test_quantity_change_zero_returns_422(client: AsyncClient, admin_token
     product = await create_product(client, admin_token, quantity=10)
 
     response = await client.post(
-        f"/stock/{product['id']}/adjust",
+        f"{API_PREFIX}/stock/{product['id']}/adjust",
         json={
             "movement_type": "ADJUST",
             "quantity_change": 0,
@@ -170,7 +173,7 @@ async def test_quantity_change_zero_returns_422(client: AsyncClient, admin_token
 
 async def test_adjust_stock_product_not_found_returns_404(client: AsyncClient, admin_token: str):
     response = await client.post(
-        "/stock/non-existent-id/adjust",
+        f"{API_PREFIX}/stock/non-existent-id/adjust",
         json={
             "movement_type": "RECEIVE",
             "quantity_change": 10,
@@ -189,7 +192,7 @@ async def test_adjust_stock_requires_admin(client: AsyncClient, admin_token: str
     product = await create_product(client, admin_token, quantity=10)
 
     response = await client.post(
-        f"/stock/{product['id']}/adjust",
+        f"{API_PREFIX}/stock/{product['id']}/adjust",
         json={
             "movement_type": "RECEIVE",
             "quantity_change": 10,
@@ -204,7 +207,7 @@ async def test_adjust_stock_requires_auth(client: AsyncClient, admin_token: str)
     product = await create_product(client, admin_token, quantity=10)
 
     response = await client.post(
-        f"/stock/{product['id']}/adjust",
+        f"{API_PREFIX}/stock/{product['id']}/adjust",
         json={
             "movement_type": "RECEIVE",
             "quantity_change": 10,
@@ -223,18 +226,18 @@ async def test_movement_history_returns_movements(client: AsyncClient, admin_tok
     headers = {"Authorization": f"Bearer {admin_token}"}
 
     await client.post(
-        f"/stock/{product['id']}/adjust",
+        f"{API_PREFIX}/stock/{product['id']}/adjust",
         json={"movement_type": "RECEIVE", "quantity_change": 100},
         headers=headers,
     )
     await client.post(
-        f"/stock/{product['id']}/adjust",
+        f"{API_PREFIX}/stock/{product['id']}/adjust",
         json={"movement_type": "SHIP", "quantity_change": -20},
         headers=headers,
     )
 
     response = await client.get(
-        f"/stock/{product['id']}/history",
+        f"{API_PREFIX}/stock/{product['id']}/history",
         headers=headers,
     )
 
@@ -251,7 +254,7 @@ async def test_movement_history_empty_product(client: AsyncClient, admin_token: 
     product = await create_product(client, admin_token, quantity=0)
 
     response = await client.get(
-        f"/stock/{product['id']}/history",
+        f"{API_PREFIX}/stock/{product['id']}/history",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
@@ -268,13 +271,13 @@ async def test_movement_history_pagination(client: AsyncClient, admin_token: str
 
     for i in range(1, 6):
         await client.post(
-            f"/stock/{product['id']}/adjust",
+            f"{API_PREFIX}/stock/{product['id']}/adjust",
             json={"movement_type": "RECEIVE", "quantity_change": i},
             headers=headers,
         )
 
     response = await client.get(
-        f"/stock/{product['id']}/history?page=1&page_size=2",
+        f"{API_PREFIX}/stock/{product['id']}/history?page=1&page_size=2",
         headers=headers,
     )
 
@@ -293,7 +296,7 @@ async def test_movement_history_regular_user_can_view(
     product = await create_product(client, admin_token, quantity=0)
 
     response = await client.get(
-        f"/stock/{product['id']}/history",
+        f"{API_PREFIX}/stock/{product['id']}/history",
         headers={"Authorization": f"Bearer {user_token}"},
     )
 
@@ -303,14 +306,14 @@ async def test_movement_history_regular_user_can_view(
 async def test_movement_history_requires_auth(client: AsyncClient, admin_token: str):
     product = await create_product(client, admin_token, quantity=0)
 
-    response = await client.get(f"/stock/{product['id']}/history")
+    response = await client.get(f"{API_PREFIX}/stock/{product['id']}/history")
 
     assert response.status_code == 401
 
 
 async def test_movement_history_product_not_found(client: AsyncClient, admin_token: str):
     response = await client.get(
-        "/stock/non-existent-id/history",
+        f"{API_PREFIX}/stock/non-existent-id/history",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
@@ -353,7 +356,7 @@ async def test_movement_history_cache_hit_returns_cached_response(
          patch("app.services.stock_service.cache_set", new=AsyncMock()) as mock_cache_set:
 
         response = await client.get(
-            f"/stock/{product['id']}/history",
+            f"{API_PREFIX}/stock/{product['id']}/history",
             headers={"Authorization": f"Bearer {admin_token}"},
         )
 
@@ -377,7 +380,7 @@ async def test_movement_history_cache_miss_sets_cache(
     headers = {"Authorization": f"Bearer {admin_token}"}
 
     await client.post(
-        f"/stock/{product['id']}/adjust",
+        f"{API_PREFIX}/stock/{product['id']}/adjust",
         json={"movement_type": "RECEIVE", "quantity_change": 25},
         headers=headers,
     )
@@ -386,7 +389,7 @@ async def test_movement_history_cache_miss_sets_cache(
          patch("app.services.stock_service.cache_set", new=AsyncMock()) as mock_cache_set:
 
         response = await client.get(
-            f"/stock/{product['id']}/history",
+            f"{API_PREFIX}/stock/{product['id']}/history",
             headers=headers,
         )
 
@@ -416,7 +419,7 @@ async def test_adjust_stock_invalidates_history_cache(
 
     with patch("app.services.stock_service.cache_delete_pattern", new=AsyncMock()) as mock_cache_delete_pattern:
         response = await client.post(
-            f"/stock/{product['id']}/adjust",
+            f"{API_PREFIX}/stock/{product['id']}/adjust",
             json={
                 "movement_type": "RECEIVE",
                 "quantity_change": 5,
@@ -450,7 +453,7 @@ async def test_movement_history_cache_hit_regular_user_can_view(
 
     with patch("app.services.stock_service.cache_get", new=AsyncMock(return_value=cached_payload)) as mock_cache_get:
         response = await client.get(
-            f"/stock/{product['id']}/history",
+            f"{API_PREFIX}/stock/{product['id']}/history",
             headers={"Authorization": f"Bearer {user_token}"},
         )
 

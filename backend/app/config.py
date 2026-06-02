@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     app_name: str = "Inventory Manager"
     app_env: str = "development"
     debug: bool = False
+    api_prefix: str = "/api/v1"
 
     # Database
     database_url: str = ""
