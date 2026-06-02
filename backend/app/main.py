@@ -1,8 +1,11 @@
 import structlog
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends
+
+from fastapi import FastAPI, Depends, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.utils.redis_client import init_redis, close_redis
@@ -22,6 +25,15 @@ from app.schemas.user import UserResponse
 settings = get_settings()
 logger = structlog.get_logger()
 
+def error_response(error: str, message: str, status_code: int):
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "error": error,
+            "message": message,
+            "status_code": status_code
+        }
+    )
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -65,6 +77,56 @@ app.add_middleware(
     allowed_hosts=["localhost", "127.0.0.1"],
 )
 
+# ---------------- Exception handlers ----------------
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+    msg = str(exc).lower()
+
+    if "not found" in msg:
+        return error_response("not_found", str(exc), status.HTTP_404_NOT_FOUND)
+
+    if "already exists" in msg or "duplicate" in msg or "conflict" in msg:
+        return error_response("conflict", str(exc), status.HTTP_409_CONFLICT)
+
+    return error_response("bad_request", str(exc), status.HTTP_400_BAD_REQUEST)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    detail = exc.detail if isinstance(exc.detail, str) else "Request failed"
+
+    if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+        error = "unauthorized"
+    elif exc.status_code == status.HTTP_403_FORBIDDEN:
+        error = "forbidden"
+    elif exc.status_code == status.HTTP_404_NOT_FOUND:
+        error = "not_found"
+    elif exc.status_code == status.HTTP_409_CONFLICT:
+        error = "conflict"
+    else:
+        error = "http_error"
+
+    return error_response(error, detail, exc.status_code)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return error_response(
+        "validation_error",
+        "Invalid request body",
+        status.HTTP_422_UNPROCESSABLE_ENTITY,
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("unhandled_exception", error=str(exc))
+    return error_response(
+        "internal_server_error",
+        "Internal server error",
+        status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
 
 
 # ------------ Routers ------------
