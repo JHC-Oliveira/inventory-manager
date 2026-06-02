@@ -11,6 +11,7 @@ from sqlalchemy import text
 from app.database import AsyncSessionLocal
 
 from app.middleware.request_logging import RequestLoggingMiddleware
+from app.middleware.rate_limit import RateLimitMiddleware
 
 from app.config import get_settings
 from app.utils.redis_client import init_redis, close_redis, get_redis
@@ -67,7 +68,7 @@ app = FastAPI(
 
 # ------- Middleware (applied to every request, in order) --------
 
-# CORS — added first in code, runs third on requests
+# CORS — added first in code, runs forth on requests
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins_list,
@@ -76,14 +77,22 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
-# TrustedHost — added second in code, runs second on requests
+# TrustedHost — added second in code, runs third on requests
 app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=["localhost", "127.0.0.1"],
 )
 
-# RequestLogging — added third in code, runs first on requests
-app.add_middleware(RequestLoggingMiddleware)
+# RequestLogging — added third in code, runs second on requests
+app.add_middleware(
+    RequestLoggingMiddleware
+)
+
+# Rate Limit — added forth in code, runs first on requests
+app.add_middleware(
+    RateLimitMiddleware,
+    requests_per_minute=60,
+)
 
 # ---------------- Exception handlers ----------------
 
