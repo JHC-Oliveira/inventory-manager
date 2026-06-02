@@ -1,5 +1,8 @@
 import pytest
 from httpx import AsyncClient
+from app.config import get_settings
+
+API_PREFIX = get_settings().api_prefix
 
 
 # ---------------------------------------------------------------------------
@@ -15,7 +18,7 @@ async def create_product(
     price: float = 29.99,
 ) -> dict:
     response = await client.post(
-        "/products",
+        f"{API_PREFIX}/products",
         json={
             "name": "Test T-Shirt",
             "sku": sku,
@@ -38,7 +41,7 @@ async def test_user_can_create_order(client: AsyncClient, user_token: str, admin
     product = await create_product(client, admin_token, quantity=100)
 
     response = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "João Henrique",
             "items": [{"product_id": product["id"], "quantity": 2}],
@@ -65,7 +68,7 @@ async def test_create_order_reduces_stock(client: AsyncClient, user_token: str, 
     product = await create_product(client, admin_token, quantity=100)
 
     await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Test Customer",
             "items": [{"product_id": product["id"], "quantity": 30}],
@@ -75,7 +78,7 @@ async def test_create_order_reduces_stock(client: AsyncClient, user_token: str, 
 
     # Check product stock was reduced
     response = await client.get(
-        f"/products/{product['id']}",
+        f"{API_PREFIX}/products/{product['id']}",
         headers={"Authorization": f"Bearer {user_token}"},
     )
     assert response.status_code == 200
@@ -89,7 +92,7 @@ async def test_create_order_multiple_items(client: AsyncClient, user_token: str,
     product_b = await create_product(client, admin_token, sku="PROD-B", quantity=80)
 
     response = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Multi Item Customer",
             "items": [
@@ -104,8 +107,8 @@ async def test_create_order_multiple_items(client: AsyncClient, user_token: str,
     assert len(response.json()["items"]) == 2
 
     # Verify both stock levels
-    stock_a = await client.get(f"/products/{product_a['id']}", headers={"Authorization": f"Bearer {user_token}"})
-    stock_b = await client.get(f"/products/{product_b['id']}", headers={"Authorization": f"Bearer {user_token}"})
+    stock_a = await client.get(f"{API_PREFIX}/products/{product_a['id']}", headers={"Authorization": f"Bearer {user_token}"})
+    stock_b = await client.get(f"{API_PREFIX}/products/{product_b['id']}", headers={"Authorization": f"Bearer {user_token}"})
     assert stock_a.json()["quantity"] == 40   # 50 - 10
     assert stock_b.json()["quantity"] == 60   # 80 - 20
 
@@ -116,7 +119,7 @@ async def test_create_order_generates_ship_movements(client: AsyncClient, user_t
     product = await create_product(client, admin_token, quantity=100)
 
     await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Audit Test",
             "items": [{"product_id": product["id"], "quantity": 5}],
@@ -125,7 +128,7 @@ async def test_create_order_generates_ship_movements(client: AsyncClient, user_t
     )
 
     history = await client.get(
-        f"/stock/{product['id']}/history",
+        f"{API_PREFIX}/stock/{product['id']}/history",
         headers={"Authorization": f"Bearer {user_token}"},
     )    
 
@@ -150,7 +153,7 @@ async def test_create_order_insufficient_stock_returns_409(
     product = await create_product(client, admin_token, quantity=5)
 
     response = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Greedy Customer",
             "items": [{"product_id": product["id"], "quantity": 10}],
@@ -159,7 +162,7 @@ async def test_create_order_insufficient_stock_returns_409(
     )
 
     assert response.status_code == 409
-    assert "insufficient stock" in response.json()["detail"].lower()
+    assert "insufficient stock" in response.json()["message"].lower()
 
 
 @pytest.mark.asyncio
@@ -167,7 +170,7 @@ async def test_create_order_product_not_found_returns_404(
     client: AsyncClient, user_token: str
 ):
     response = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Test",
             "items": [{"product_id": "non-existent-id", "quantity": 1}],
@@ -184,7 +187,7 @@ async def test_create_order_empty_items_returns_422(
 ):
     """An order with zero items must be rejected by the schema."""
     response = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={"customer_name": "Test", "items": []},
         headers={"Authorization": f"Bearer {user_token}"},
     )
@@ -200,7 +203,7 @@ async def test_create_order_zero_quantity_returns_422(
     product = await create_product(client, admin_token, quantity=100)
 
     response = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Test",
             "items": [{"product_id": product["id"], "quantity": 0}],
@@ -219,7 +222,7 @@ async def test_create_order_duplicate_product_returns_422(
     product = await create_product(client, admin_token, quantity=100)
 
     response = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Test",
             "items": [
@@ -242,12 +245,12 @@ async def test_create_order_inactive_product_returns_404(
 
     # Soft-delete the product
     await client.delete(
-        f"/products/{product['id']}",
+        f"{API_PREFIX}/products/{product['id']}",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
     response = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Test",
             "items": [{"product_id": product["id"], "quantity": 1}],
@@ -270,7 +273,7 @@ async def test_create_order_partial_failure_rolls_back(
     product_b = await create_product(client, admin_token, sku="ROLLBACK-B", quantity=2)
 
     response = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Rollback Test",
             "items": [
@@ -285,7 +288,7 @@ async def test_create_order_partial_failure_rolls_back(
 
     # Product A stock must be untouched — the whole order rolled back
     stock_a = await client.get(
-        f"/products/{product_a['id']}",
+        f"{API_PREFIX}/products/{product_a['id']}",
         headers={"Authorization": f"Bearer {user_token}"},
     )
     assert stock_a.json()["quantity"] == 50  # unchanged ✅
@@ -300,7 +303,7 @@ async def test_create_order_requires_auth(client: AsyncClient, admin_token: str)
     product = await create_product(client, admin_token, quantity=100)
 
     response = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Test",
             "items": [{"product_id": product["id"], "quantity": 1}],
@@ -320,7 +323,7 @@ async def test_admin_can_cancel_order(client: AsyncClient, user_token: str, admi
     product = await create_product(client, admin_token, quantity=100)
 
     order = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "To Cancel",
             "items": [{"product_id": product["id"], "quantity": 10}],
@@ -331,7 +334,7 @@ async def test_admin_can_cancel_order(client: AsyncClient, user_token: str, admi
     order_id = order.json()["id"]
 
     response = await client.patch(
-        f"/orders/{order_id}/cancel",
+        f"{API_PREFIX}/orders/{order_id}/cancel",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
@@ -345,7 +348,7 @@ async def test_cancel_order_restores_stock(client: AsyncClient, user_token: str,
     product = await create_product(client, admin_token, quantity=100)
 
     order = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Restore Test",
             "items": [{"product_id": product["id"], "quantity": 25}],
@@ -356,13 +359,13 @@ async def test_cancel_order_restores_stock(client: AsyncClient, user_token: str,
 
     # Stock is now 75
     await client.patch(
-        f"/orders/{order_id}/cancel",
+        f"{API_PREFIX}/orders/{order_id}/cancel",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
     # Stock must be back to 100
     stock = await client.get(
-        f"/products/{product['id']}",
+        f"{API_PREFIX}/products/{product['id']}",
         headers={"Authorization": f"Bearer {user_token}"},
     )
     assert stock.json()["quantity"] == 100  # fully restored ✅
@@ -376,7 +379,7 @@ async def test_cancel_order_generates_receive_movements(
     product = await create_product(client, admin_token, quantity=100)
 
     order = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Movement Test",
             "items": [{"product_id": product["id"], "quantity": 10}],
@@ -386,12 +389,12 @@ async def test_cancel_order_generates_receive_movements(
     order_id = order.json()["id"]
 
     await client.patch(
-        f"/orders/{order_id}/cancel",
+        f"{API_PREFIX}/orders/{order_id}/cancel",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
     history = await client.get(
-        f"/stock/{product['id']}/history",
+        f"{API_PREFIX}/stock/{product['id']}/history",
         headers={"Authorization": f"Bearer {user_token}"},
     )
     data = history.json()
@@ -415,7 +418,7 @@ async def test_cancel_already_cancelled_order_returns_409(
     product = await create_product(client, admin_token, quantity=100)
 
     order = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Double Cancel",
             "items": [{"product_id": product["id"], "quantity": 1}],
@@ -426,18 +429,18 @@ async def test_cancel_already_cancelled_order_returns_409(
 
     # First cancel — success
     await client.patch(
-        f"/orders/{order_id}/cancel",
+        f"{API_PREFIX}/orders/{order_id}/cancel",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
     # Second cancel — must fail
     response = await client.patch(
-        f"/orders/{order_id}/cancel",
+        f"{API_PREFIX}/orders/{order_id}/cancel",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
     assert response.status_code == 409
-    assert "cannot be cancelled" in response.json()["detail"].lower()
+    assert "cannot be cancelled" in response.json()["message"].lower()
 
 
 @pytest.mark.asyncio
@@ -445,7 +448,7 @@ async def test_cancel_non_existent_order_returns_404(
     client: AsyncClient, admin_token: str
 ):
     response = await client.patch(
-        "/orders/non-existent-order-id/cancel",
+        f"{API_PREFIX}/orders/non-existent-order-id/cancel",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
@@ -464,7 +467,7 @@ async def test_regular_user_cannot_cancel_order(
     product = await create_product(client, admin_token, quantity=100)
 
     order = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Auth Test",
             "items": [{"product_id": product["id"], "quantity": 1}],
@@ -474,7 +477,7 @@ async def test_regular_user_cannot_cancel_order(
     order_id = order.json()["id"]
 
     response = await client.patch(
-        f"/orders/{order_id}/cancel",
+        f"{API_PREFIX}/orders/{order_id}/cancel",
         headers={"Authorization": f"Bearer {user_token}"},  # user, not admin
     )
 
@@ -486,7 +489,7 @@ async def test_cancel_order_requires_auth(client: AsyncClient, user_token: str, 
     product = await create_product(client, admin_token, quantity=100)
 
     order = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Auth Test",
             "items": [{"product_id": product["id"], "quantity": 1}],
@@ -495,7 +498,7 @@ async def test_cancel_order_requires_auth(client: AsyncClient, user_token: str, 
     )
     order_id = order.json()["id"]
 
-    response = await client.patch(f"/orders/{order_id}/cancel")  # no token
+    response = await client.patch(f"{API_PREFIX}/orders/{order_id}/cancel")  # no token
 
     assert response.status_code == 401
 
@@ -509,7 +512,7 @@ async def test_get_order_by_id(client: AsyncClient, user_token: str, admin_token
     product = await create_product(client, admin_token, quantity=100)
 
     order = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Get Test",
             "items": [{"product_id": product["id"], "quantity": 3}],
@@ -519,7 +522,7 @@ async def test_get_order_by_id(client: AsyncClient, user_token: str, admin_token
     order_id = order.json()["id"]
 
     response = await client.get(
-        f"/orders/{order_id}",
+        f"{API_PREFIX}/orders/{order_id}",
         headers={"Authorization": f"Bearer {user_token}"},
     )
 
@@ -533,7 +536,7 @@ async def test_get_order_by_id(client: AsyncClient, user_token: str, admin_token
 @pytest.mark.asyncio
 async def test_get_non_existent_order_returns_404(client: AsyncClient, user_token: str):
     response = await client.get(
-        "/orders/non-existent-id",
+        f"{API_PREFIX}/orders/non-existent-id",
         headers={"Authorization": f"Bearer {user_token}"},
     )
 
@@ -545,7 +548,7 @@ async def test_get_order_requires_auth(client: AsyncClient, user_token: str, adm
     product = await create_product(client, admin_token, quantity=100)
 
     order = await client.post(
-        "/orders",
+        f"{API_PREFIX}/orders",
         json={
             "customer_name": "Auth Test",
             "items": [{"product_id": product["id"], "quantity": 1}],
@@ -554,7 +557,7 @@ async def test_get_order_requires_auth(client: AsyncClient, user_token: str, adm
     )
     order_id = order.json()["id"]
 
-    response = await client.get(f"/orders/{order_id}")  # no token
+    response = await client.get(f"{API_PREFIX}/orders/{order_id}")  # no token
 
     assert response.status_code == 401
 
@@ -571,7 +574,7 @@ async def test_list_orders_returns_all(client: AsyncClient, user_token: str, adm
     # Create 3 orders
     for i in range(3):
         await client.post(
-            "/orders",
+            f"{API_PREFIX}/orders",
             json={
                 "customer_name": f"Customer {i}",
                 "items": [{"product_id": product["id"], "quantity": 1}],
@@ -579,7 +582,7 @@ async def test_list_orders_returns_all(client: AsyncClient, user_token: str, adm
             headers=headers,
         )
 
-    response = await client.get("/orders", headers=headers)
+    response = await client.get(f"{API_PREFIX}/orders", headers=headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -595,7 +598,7 @@ async def test_list_orders_pagination(client: AsyncClient, user_token: str, admi
 
     for i in range(5):
         await client.post(
-            "/orders",
+            f"{API_PREFIX}/orders",
             json={
                 "customer_name": f"Customer {i}",
                 "items": [{"product_id": product["id"], "quantity": 1}],
@@ -603,7 +606,7 @@ async def test_list_orders_pagination(client: AsyncClient, user_token: str, admi
             headers=headers,
         )
 
-    response = await client.get("/orders?page=1&page_size=2", headers=headers)
+    response = await client.get(f"{API_PREFIX}/orders?page=1&page_size=2", headers=headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -616,6 +619,6 @@ async def test_list_orders_pagination(client: AsyncClient, user_token: str, admi
 
 @pytest.mark.asyncio
 async def test_list_orders_requires_auth(client: AsyncClient):
-    response = await client.get("/orders")  # no token
+    response = await client.get(f"{API_PREFIX}/orders")  # no token
 
     assert response.status_code == 401
