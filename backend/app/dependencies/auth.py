@@ -9,11 +9,17 @@ from app.models.user import User
 from app.schemas.user import TokenData
 from app.utils.jwt import verify_token
 
+from app.config import get_settings
+
+settings = get_settings()
+
 logger = structlog.get_logger()
+
+API_PREFIX = settings.api_prefix
 
 # Tells FastAPI where tokens come from — the /auth/login endpoint
 # This also makes the lock icon appear in Swagger docs
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{API_PREFIX}/auth/login")
 
 
 async def get_current_user(

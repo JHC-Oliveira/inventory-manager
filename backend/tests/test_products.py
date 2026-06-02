@@ -1,6 +1,8 @@
 from httpx import AsyncClient
 from unittest.mock import AsyncMock, patch
 
+API_PREFIX = "/api/v1"
+
 # Reusable product payload
 PRODUCT_PAYLOAD = {
     "name": "Test T-Shirt",
@@ -17,7 +19,7 @@ PRODUCT_PAYLOAD = {
 # -----------------------------------------------------------------------------
 async def test_admin_can_create_product(client: AsyncClient, admin_token: str):
     response = await client.post(
-        "/products",
+        f"{API_PREFIX}/products",
         json=PRODUCT_PAYLOAD,
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -33,7 +35,7 @@ async def test_admin_can_create_product(client: AsyncClient, admin_token: str):
 
 async def test_regular_user_cannot_create_product(client: AsyncClient, user_token: str):
     response = await client.post(
-        "/products",
+        f"{API_PREFIX}/products",
         json=PRODUCT_PAYLOAD,
         headers={"Authorization": f"Bearer {user_token}"},
     )
@@ -41,22 +43,22 @@ async def test_regular_user_cannot_create_product(client: AsyncClient, user_toke
 
 
 async def test_unauthenticated_cannot_create_product(client: AsyncClient):
-    response = await client.post("/products", json=PRODUCT_PAYLOAD)
+    response = await client.post(f"{API_PREFIX}/products", json=PRODUCT_PAYLOAD)
     assert response.status_code == 401
 
 
 async def test_duplicate_sku_rejected(client: AsyncClient, admin_token: str):
     headers = {"Authorization": f"Bearer {admin_token}"}
-    await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers)
-    response = await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers)
+    await client.post(f"{API_PREFIX}/products", json=PRODUCT_PAYLOAD, headers=headers)
+    response = await client.post(f"{API_PREFIX}/products", json=PRODUCT_PAYLOAD, headers=headers)
     assert response.status_code == 409
-    assert "already exists" in response.json()["detail"].lower()
+    assert "already exists" in response.json()["message"].lower()
 
 
 async def test_sku_is_stored_uppercase(client: AsyncClient, admin_token: str):
     payload = {**PRODUCT_PAYLOAD, "sku": "tshirt-blu-l"}  # lowercase
     response = await client.post(
-        "/products",
+        f"{API_PREFIX}/products",
         json=payload,
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -70,13 +72,13 @@ async def test_sku_is_stored_uppercase(client: AsyncClient, admin_token: str):
 async def test_logged_in_user_can_list_products(client: AsyncClient, user_token: str, admin_token: str):
     # Admin creates a product first
     await client.post(
-        "/products",
+        f"{API_PREFIX}/products",
         json=PRODUCT_PAYLOAD,
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     # Regular user lists products
     response = await client.get(
-        "/products",
+        f"{API_PREFIX}/products",
         headers={"Authorization": f"Bearer {user_token}"},
     )
     assert response.status_code == 200
@@ -87,7 +89,7 @@ async def test_logged_in_user_can_list_products(client: AsyncClient, user_token:
 
 
 async def test_unauthenticated_cannot_list_products(client: AsyncClient):
-    response = await client.get("/products")
+    response = await client.get(f"{API_PREFIX}/products")
     assert response.status_code == 401
 
 
@@ -96,13 +98,13 @@ async def test_pagination_works(client: AsyncClient, admin_token: str):
     # Create 3 products with different SKUs
     for i in range(3):
         await client.post(
-            "/products",
+            f"{API_PREFIX}/products",
             json={**PRODUCT_PAYLOAD, "sku": f"PRODUCT-{i}"},
             headers=headers,
         )
     # Request page 1 with page_size=2
     response = await client.get(
-        "/products?page=1&page_size=2",
+        f"{API_PREFIX}/products?page=1&page_size=2",
         headers=headers,
     )
     assert response.status_code == 200
@@ -117,14 +119,14 @@ async def test_pagination_works(client: AsyncClient, admin_token: str):
 # -----------------------------------------------------------------------------
 async def test_get_product_by_id(client: AsyncClient, user_token: str, admin_token: str):
     create = await client.post(
-        "/products",
+        f"{API_PREFIX}/products",
         json=PRODUCT_PAYLOAD,
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     product_id = create.json()["id"]
 
     response = await client.get(
-        f"/products/{product_id}",
+        f"{API_PREFIX}/products/{product_id}",
         headers={"Authorization": f"Bearer {user_token}"},
     )
     assert response.status_code == 200
@@ -133,7 +135,7 @@ async def test_get_product_by_id(client: AsyncClient, user_token: str, admin_tok
 
 async def test_get_nonexistent_product_returns_404(client: AsyncClient, user_token: str):
     response = await client.get(
-        "/products/nonexistent-id-999",
+        f"{API_PREFIX}/products/nonexistent-id-999",
         headers={"Authorization": f"Bearer {user_token}"},
     )
     assert response.status_code == 404
@@ -144,11 +146,11 @@ async def test_get_nonexistent_product_returns_404(client: AsyncClient, user_tok
 # -----------------------------------------------------------------------------
 async def test_admin_can_update_product(client: AsyncClient, admin_token: str):
     headers = {"Authorization": f"Bearer {admin_token}"}
-    create = await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers)
+    create = await client.post(f"{API_PREFIX}/products", json=PRODUCT_PAYLOAD, headers=headers)
     product_id = create.json()["id"]
 
     response = await client.put(
-        f"/products/{product_id}",
+        f"{API_PREFIX}/products/{product_id}",
         json={"price": "39.99", "quantity": 50},
         headers=headers,
     )
@@ -161,11 +163,11 @@ async def test_admin_can_update_product(client: AsyncClient, admin_token: str):
 
 async def test_empty_update_rejected(client: AsyncClient, admin_token: str):
     headers = {"Authorization": f"Bearer {admin_token}"}
-    create = await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers)
+    create = await client.post(f"{API_PREFIX}/products", json=PRODUCT_PAYLOAD, headers=headers)
     product_id = create.json()["id"]
 
     response = await client.put(
-        f"/products/{product_id}",
+        f"{API_PREFIX}/products/{product_id}",
         json={},  # nothing sent
         headers=headers,
     )
@@ -176,11 +178,11 @@ async def test_regular_user_cannot_update_product(
     client: AsyncClient, user_token: str, admin_token: str
 ):
     headers_admin = {"Authorization": f"Bearer {admin_token}"}
-    create = await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers_admin)
+    create = await client.post(f"{API_PREFIX}/products", json=PRODUCT_PAYLOAD, headers=headers_admin)
     product_id = create.json()["id"]
 
     response = await client.put(
-        f"/products/{product_id}",
+        f"{API_PREFIX}/products/{product_id}",
         json={"price": "9.99"},
         headers={"Authorization": f"Bearer {user_token}"},
     )
@@ -192,35 +194,35 @@ async def test_regular_user_cannot_update_product(
 # -----------------------------------------------------------------------------
 async def test_admin_can_delete_product(client: AsyncClient, admin_token: str):
     headers = {"Authorization": f"Bearer {admin_token}"}
-    create = await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers)
+    create = await client.post(f"{API_PREFIX}/products", json=PRODUCT_PAYLOAD, headers=headers)
     product_id = create.json()["id"]
 
-    response = await client.delete(f"/products/{product_id}", headers=headers)
+    response = await client.delete(f"{API_PREFIX}/products/{product_id}", headers=headers)
     assert response.status_code == 204
 
 
 async def test_deleted_product_not_in_list(client: AsyncClient, admin_token: str):
     headers = {"Authorization": f"Bearer {admin_token}"}
-    create = await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers)
+    create = await client.post(f"{API_PREFIX}/products", json=PRODUCT_PAYLOAD, headers=headers)
     product_id = create.json()["id"]
 
     # Delete it
-    await client.delete(f"/products/{product_id}", headers=headers)
+    await client.delete(f"{API_PREFIX}/products/{product_id}", headers=headers)
 
     # Should not appear in list
-    response = await client.get("/products", headers=headers)
+    response = await client.get(f"{API_PREFIX}/products", headers=headers)
     assert response.json()["total"] == 0
 
 
 async def test_deleted_product_returns_404(client: AsyncClient, admin_token: str):
     headers = {"Authorization": f"Bearer {admin_token}"}
-    create = await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers)
+    create = await client.post(f"{API_PREFIX}/products", json=PRODUCT_PAYLOAD, headers=headers)
     product_id = create.json()["id"]
 
-    await client.delete(f"/products/{product_id}", headers=headers)
+    await client.delete(f"{API_PREFIX}/products/{product_id}", headers=headers)
 
     # Direct fetch should 404
-    response = await client.get(f"/products/{product_id}", headers=headers)
+    response = await client.get(f"{API_PREFIX}/products/{product_id}", headers=headers)
     assert response.status_code == 404
 
 
@@ -228,11 +230,11 @@ async def test_regular_user_cannot_delete_product(
     client: AsyncClient, user_token: str, admin_token: str
 ):
     headers_admin = {"Authorization": f"Bearer {admin_token}"}
-    create = await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers_admin)
+    create = await client.post(f"{API_PREFIX}/products", json=PRODUCT_PAYLOAD, headers=headers_admin)
     product_id = create.json()["id"]
 
     response = await client.delete(
-        f"/products/{product_id}",
+        f"{API_PREFIX}/products/{product_id}",
         headers={"Authorization": f"Bearer {user_token}"},
     )
     assert response.status_code == 403
@@ -274,7 +276,7 @@ async def test_get_products_cache_hit_returns_cached_response(
          patch("app.services.product_service.cache_set", new=AsyncMock()) as mock_cache_set:
 
         response = await client.get(
-            "/products",
+            f"{API_PREFIX}/products",
             headers={"Authorization": f"Bearer {user_token}"},
         )
 
@@ -295,12 +297,12 @@ async def test_get_products_cache_miss_sets_cache(
 ):
     headers = {"Authorization": f"Bearer {admin_token}"}
 
-    await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers)
+    await client.post(f"{API_PREFIX}/products", json=PRODUCT_PAYLOAD, headers=headers)
 
     with patch("app.services.product_service.cache_get", new=AsyncMock(return_value=None)) as mock_cache_get, \
          patch("app.services.product_service.cache_set", new=AsyncMock()) as mock_cache_set:
 
-        response = await client.get("/products", headers=headers)
+        response = await client.get(f"{API_PREFIX}/products", headers=headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -320,7 +322,7 @@ async def test_create_product_invalidates_products_cache(
     headers = {"Authorization": f"Bearer {admin_token}"}
 
     with patch("app.services.product_service.cache_delete_pattern", new=AsyncMock()) as mock_cache_delete_pattern:
-        response = await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers)
+        response = await client.post(f"{API_PREFIX}/products", json=PRODUCT_PAYLOAD, headers=headers)
 
     assert response.status_code == 201
     mock_cache_delete_pattern.assert_awaited_once_with("products:list:*")
@@ -333,12 +335,12 @@ async def test_update_product_invalidates_products_cache(
 ):
     headers = {"Authorization": f"Bearer {admin_token}"}
 
-    create = await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers)
+    create = await client.post(f"{API_PREFIX}/products", json=PRODUCT_PAYLOAD, headers=headers)
     product_id = create.json()["id"]
 
     with patch("app.services.product_service.cache_delete_pattern", new=AsyncMock()) as mock_cache_delete_pattern:
         response = await client.put(
-            f"/products/{product_id}",
+            f"{API_PREFIX}/products/{product_id}",
             json={"price": "39.99"},
             headers=headers,
         )
@@ -355,11 +357,11 @@ async def test_delete_product_invalidates_products_cache(
 ):
     headers = {"Authorization": f"Bearer {admin_token}"}
 
-    create = await client.post("/products", json=PRODUCT_PAYLOAD, headers=headers)
+    create = await client.post(f"{API_PREFIX}/products", json=PRODUCT_PAYLOAD, headers=headers)
     product_id = create.json()["id"]
 
     with patch("app.services.product_service.cache_delete_pattern", new=AsyncMock()) as mock_cache_delete_pattern:
-        response = await client.delete(f"/products/{product_id}", headers=headers)
+        response = await client.delete(f"{API_PREFIX}/products/{product_id}", headers=headers)
 
     assert response.status_code == 204
     mock_cache_delete_pattern.assert_awaited_once_with("products:list:*")
