@@ -44,9 +44,26 @@ class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    user: UserResponse
 
 
 class TokenData(BaseModel):
     """Schema for the data extracted from inside a JWT token."""
     user_id: str
     is_admin: bool = False
+    
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+    
+class RefreshRequest(BaseModel):
+    refresh_token: str
+    
+class RefreshResponse(BaseModel):
+    """Return on in refresh— only refresh the token."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+class LogoutRequest(BaseModel):
+    refresh_token: str
