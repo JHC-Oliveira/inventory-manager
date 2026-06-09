@@ -1,12 +1,11 @@
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.database import get_db
 from app.models.user import User
-from app.schemas.user import UserRegister, TokenResponse
+from app.schemas.user import UserRegister, TokenResponse, LoginRequest, RefreshRequest, LogoutRequest, UserResponse, RefreshResponse
 from app.utils.password import hash_password, verify_password
 from app.utils.jwt import create_access_token, create_refresh_token, verify_token
 from app.utils.redis_client import (
@@ -57,27 +56,26 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
 
     logger.info("user_registered", user_id=new_user.id, email=new_user.email)
 
-    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token, user=UserResponse.model_validate(new_user))
 
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    data: LoginRequest,
     db: AsyncSession = Depends(get_db),
 ):
     """
     Login with email and password, returns tokens.
     
-    ***ATENTION:*** put your email in the username field 
     """
 
     # 1. Find user by email
-    result = await db.execute(select(User).where(User.email == form_data.username))
+    result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
 
     # 2. Verify user exists and password is correct
     # We check both in one block intentionally — never reveal which one failed
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    if not user or not verify_password(data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -104,16 +102,16 @@ async def login(
 
     logger.info("user_logged_in", user_id=user.id)
 
-    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token, user=UserResponse.model_validate(user))
 
 
-@router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(token: str):
+@router.post("/refresh", response_model=RefreshResponse)
+async def refresh_token(data: RefreshRequest):
     """Issue a new access token using a valid refresh token."""
 
     # 1. Verify the token is a valid JWT refresh token
     try:
-        token_data = verify_token(token, expected_type="refresh")
+        token_data = verify_token(data.refresh_token, expected_type="refresh")
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -122,7 +120,7 @@ async def refresh_token(token: str):
 
     # 2. Check if the token exists in Redis (not logged out)
     stored_token = await get_refresh_token(user_id=token_data.user_id)
-    if stored_token is None or stored_token != token:
+    if stored_token is None or stored_token != data.refresh_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token is invalid or has been revoked",
@@ -136,16 +134,19 @@ async def refresh_token(token: str):
 
     logger.info("token_refreshed", user_id=token_data.user_id)
 
-    return TokenResponse(access_token=new_access_token, refresh_token=token)
+    return RefreshResponse(
+        access_token=new_access_token,
+        refresh_token=data.refresh_token,
+    )
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
-async def logout(token: str):
+async def logout(data: LogoutRequest):
     """Logout by revoking the refresh token."""
 
     # 1. Verify it's a valid refresh token
     try:
-        token_data = verify_token(token, expected_type="refresh")
+        token_data = verify_token(data.refresh_token, expected_type="refresh")
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
