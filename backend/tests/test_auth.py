@@ -34,8 +34,8 @@ async def test_login_success(client):
         "password": "StrongPass123",
         "full_name": "Joao Henrique"
     })
-    response = await client.post(f"{API_PREFIX}/auth/login", data={
-        "username": "joao@example.com",
+    response = await client.post(f"{API_PREFIX}/auth/login", json={
+        "email": "joao@example.com",
         "password": "StrongPass123"
     })
     assert response.status_code == 200
@@ -51,8 +51,8 @@ async def test_login_wrong_password(client):
         "password": "StrongPass123",
         "full_name": "Joao Henrique"
     })
-    response = await client.post(f"{API_PREFIX}/auth/login", data={
-        "username": "joao@example.com",
+    response = await client.post(f"{API_PREFIX}/auth/login", json={
+        "email": "joao@example.com",
         "password": "WrongPassword1"
     })
     assert response.status_code == 401
@@ -60,8 +60,8 @@ async def test_login_wrong_password(client):
 
 @pytest.mark.asyncio
 async def test_login_nonexistent_user(client):
-    response = await client.post(f"{API_PREFIX}/auth/login", data={
-        "username": "nobody@example.com",
+    response = await client.post(f"{API_PREFIX}/auth/login", json={
+        "email": "nobody@example.com",
         "password": "StrongPass123"
     })
     assert response.status_code == 401
@@ -74,8 +74,8 @@ async def test_protected_route_with_valid_token(client):
         "password": "StrongPass123",
         "full_name": "Joao Henrique"
     })
-    login = await client.post(f"{API_PREFIX}/auth/login", data={
-        "username": "joao@example.com",
+    login = await client.post(f"{API_PREFIX}/auth/login", json={
+        "email": "joao@example.com",
         "password": "StrongPass123"
     })
     token = login.json()["access_token"]
