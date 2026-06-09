@@ -80,7 +80,7 @@ app.add_middleware(
 # TrustedHost — added second in code, runs third on requests
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["localhost", "127.0.0.1"],
+    allowed_hosts=["localhost", "127.0.0.1", "api", "*.localhost"],
 )
 
 # RequestLogging — added third in code, runs second on requests

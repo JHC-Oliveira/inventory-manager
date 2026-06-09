@@ -74,8 +74,8 @@ async def user_token(client: AsyncClient) -> str:
         "password": "StrongPass123",
         "full_name": "Regular User",
     })
-    response = await client.post(f"{API_PREFIX}/auth/login", data={
-        "username": "user@example.com",
+    response = await client.post(f"{API_PREFIX}/auth/login", json={
+        "email": "user@example.com",
         "password": "StrongPass123",
     })
     return response.json()["access_token"]
@@ -109,8 +109,8 @@ async def admin_token(client: AsyncClient) -> str:
         break
 
     # Log in again — new token will carry is_admin=True
-    response = await client.post(f"{API_PREFIX}/auth/login", data={
-        "username": "admin@example.com",
+    response = await client.post(f"{API_PREFIX}/auth/login", json={
+        "email": "admin@example.com",
         "password": "AdminPass123",
     })
     return response.json()["access_token"]
