@@ -8,6 +8,7 @@ type Props = {
   onSubmit: (data: CreateProductPayload) => Promise<void>
   onCancel: () => void
   loading: boolean
+  externalError?: string
 }
 
 type FormState = {
@@ -25,6 +26,7 @@ export default function ProductForm({
   onSubmit,
   onCancel,
   loading,
+  externalError = '',
 }: Props) {
   const [form, setForm] = useState<FormState>({
     name: '',
@@ -214,9 +216,9 @@ export default function ProductForm({
         </div>
       </div>
 
-      {error && (
+      {(error || externalError) && (
         <div className="mt-4 rounded-lg border border-red-900 bg-red-950 px-3 py-2 text-sm text-red-300">
-          {error}
+          {error || externalError}
         </div>
       )}
 

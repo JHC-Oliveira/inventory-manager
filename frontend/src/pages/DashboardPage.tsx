@@ -12,6 +12,7 @@ import ProductCard from '../components/products/ProductCard'
 import ProductForm from '../components/products/ProductForm'
 import ProductsSkeleton from '../components/products/ProductsSkeleton'
 import { Button } from '../components/ui/button'
+import { getErrorMessage } from '../lib/errors'
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user)
@@ -19,7 +20,8 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [pageError, setPageError] = useState('')
+  const [formError, setFormError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -28,12 +30,12 @@ export default function DashboardPage() {
   const loadProducts = async () => {
     try {
       setLoading(true)
-      setError('')
+      setPageError('')
       const data = await getProducts(1, 12)
       setProducts(data.items)
       setTotal(data.total)
-    } catch {
-      setError('Failed to load products.')
+    } catch (err) {
+      setPageError(getErrorMessage(err, 'Failed to load products.'))
     } finally {
       setLoading(false)
     }
@@ -46,24 +48,27 @@ export default function DashboardPage() {
   const openCreateForm = () => {
     setFormMode('create')
     setSelectedProduct(null)
+    setFormError('')
     setShowForm(true)
   }
 
   const openEditForm = (product: Product) => {
     setFormMode('edit')
     setSelectedProduct(product)
+    setFormError('')
     setShowForm(true)
   }
 
   const closeForm = () => {
     setShowForm(false)
     setSelectedProduct(null)
+    setFormError('')
   }
 
   const handleSubmit = async (data: CreateProductPayload) => {
     try {
       setSaving(true)
-      setError('')
+      setFormError('')
 
       if (formMode === 'create') {
         await createProduct(data)
@@ -73,11 +78,14 @@ export default function DashboardPage() {
 
       closeForm()
       await loadProducts()
-    } catch {
-      setError(
-        formMode === 'create'
-          ? 'Failed to create product.'
-          : 'Failed to update product.'
+    } catch (err) {
+      setFormError(
+        getErrorMessage(
+          err,
+          formMode === 'create'
+            ? 'Failed to create product.'
+            : 'Failed to update product.'
+        )
       )
     } finally {
       setSaving(false)
@@ -92,11 +100,11 @@ export default function DashboardPage() {
     if (!confirmed) return
 
     try {
-      setError('')
+      setPageError('')
       await deleteProduct(product.id)
       await loadProducts()
-    } catch {
-      setError('Failed to delete product.')
+    } catch (err) {
+      setPageError(getErrorMessage(err, 'Failed to delete product.'))
     }
   }
 
@@ -137,18 +145,19 @@ export default function DashboardPage() {
             onSubmit={handleSubmit}
             onCancel={closeForm}
             loading={saving}
+            externalError={formError}
           />
         )}
 
-        {error && (
+        {pageError && (
           <div className="rounded-xl border border-red-900 bg-red-950 p-4 text-red-300">
-            {error}
+            {pageError}
           </div>
         )}
 
         {loading && <ProductsSkeleton />}
 
-        {!loading && !error && products.length === 0 && (
+        {!loading && !pageError && products.length === 0 && (
           <div className="rounded-xl border border-slate-800 bg-slate-900 p-12 text-center">
             <p className="text-slate-400">No products yet.</p>
           </div>
