@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import {
   createProduct,
+  deleteProduct,
   getProducts,
+  updateProduct,
   type CreateProductPayload,
   type Product,
 } from '../api/products'
@@ -19,7 +21,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [creating, setCreating] = useState(false)
+  const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [saving, setSaving] = useState(false)
 
   const loadProducts = async () => {
     try {
@@ -39,16 +43,60 @@ export default function DashboardPage() {
     loadProducts()
   }, [])
 
-  const handleCreateProduct = async (data: CreateProductPayload) => {
+  const openCreateForm = () => {
+    setFormMode('create')
+    setSelectedProduct(null)
+    setShowForm(true)
+  }
+
+  const openEditForm = (product: Product) => {
+    setFormMode('edit')
+    setSelectedProduct(product)
+    setShowForm(true)
+  }
+
+  const closeForm = () => {
+    setShowForm(false)
+    setSelectedProduct(null)
+  }
+
+  const handleSubmit = async (data: CreateProductPayload) => {
     try {
-      setCreating(true)
-      await createProduct(data)
-      setShowForm(false)
+      setSaving(true)
+      setError('')
+
+      if (formMode === 'create') {
+        await createProduct(data)
+      } else if (selectedProduct) {
+        await updateProduct(selectedProduct.id, data)
+      }
+
+      closeForm()
       await loadProducts()
     } catch {
-      setError('Failed to create product.')
+      setError(
+        formMode === 'create'
+          ? 'Failed to create product.'
+          : 'Failed to update product.'
+      )
     } finally {
-      setCreating(false)
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (product: Product) => {
+    const confirmed = window.confirm(
+      `Delete "${product.name}"? This action cannot be undone.`
+    )
+
+    if (!confirmed) return
+
+    try {
+      setError('')
+      await deleteProduct(product.id)
+      await loadProducts()
+    } catch {
+      setError('Failed to delete product.')
     }
   }
 
@@ -66,7 +114,7 @@ export default function DashboardPage() {
 
           {user?.is_admin && (
             <Button
-              onClick={() => setShowForm((prev) => !prev)}
+              onClick={() => (showForm ? closeForm() : openCreateForm())}
               className="bg-cyan-600 text-white transition hover:bg-cyan-500"
             >
               {showForm ? 'Close form' : 'Add product'}
@@ -84,9 +132,11 @@ export default function DashboardPage() {
       <main className="space-y-8 px-8 py-8">
         {user?.is_admin && showForm && (
           <ProductForm
-            onSubmit={handleCreateProduct}
-            onCancel={() => setShowForm(false)}
-            loading={creating}
+            mode={formMode}
+            initialData={selectedProduct}
+            onSubmit={handleSubmit}
+            onCancel={closeForm}
+            loading={saving}
           />
         )}
 
@@ -114,8 +164,11 @@ export default function DashboardPage() {
                 description={product.description}
                 quantity={product.quantity}
                 price={product.price}
-                isLowStock={product.is_low_stock}   
+                isLowStock={product.is_low_stock}
                 isActive={product.is_active}
+                canManage={!!user?.is_admin}
+                onEdit={() => openEditForm(product)}
+                onDelete={() => handleDelete(product)}
               />
             ))}
           </div>

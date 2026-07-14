@@ -1,3 +1,5 @@
+import { Button } from '../ui/button'
+
 type Props = {
   name: string
   sku: string
@@ -6,6 +8,9 @@ type Props = {
   price: string | number
   isLowStock: boolean
   isActive: boolean
+  canManage?: boolean
+  onEdit?: () => void
+  onDelete?: () => void
 }
 
 export default function ProductCard({
@@ -16,6 +21,9 @@ export default function ProductCard({
   price,
   isLowStock,
   isActive,
+  canManage = false,
+  onEdit,
+  onDelete,
 }: Props) {
   return (
     <article className="rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-sm transition hover:border-slate-700 hover:bg-slate-800/80">
@@ -58,6 +66,28 @@ export default function ProductCard({
         <p className="mt-4 rounded-lg bg-amber-950 px-3 py-2 text-sm text-amber-300">
           Low stock — reorder soon
         </p>
+      )}
+
+      {canManage && (
+        <div className="mt-4 flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onEdit}
+            className="transition hover:bg-slate-800 hover:text-white"
+          >
+            Edit
+          </Button>
+
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={onDelete}
+            className="transition hover:opacity-90"
+          >
+            Delete
+          </Button>
+        </div>
       )}
     </article>
   )
