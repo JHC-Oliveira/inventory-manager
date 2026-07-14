@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '../ui/button'
-import type { CreateProductPayload } from '../../api/products'
+import type { CreateProductPayload, Product } from '../../api/products'
 
 type Props = {
+  mode: 'create' | 'edit'
+  initialData?: Product | null
   onSubmit: (data: CreateProductPayload) => Promise<void>
   onCancel: () => void
   loading: boolean
@@ -17,7 +19,13 @@ type FormState = {
   low_stock_threshold: string
 }
 
-export default function ProductForm({ onSubmit, onCancel, loading }: Props) {
+export default function ProductForm({
+  mode,
+  initialData,
+  onSubmit,
+  onCancel,
+  loading,
+}: Props) {
   const [form, setForm] = useState<FormState>({
     name: '',
     sku: '',
@@ -29,11 +37,33 @@ export default function ProductForm({ onSubmit, onCancel, loading }: Props) {
 
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    if (mode === 'edit' && initialData) {
+      setForm({
+        name: initialData.name,
+        sku: initialData.sku,
+        description: initialData.description ?? '',
+        price: String(initialData.price),
+        quantity: String(initialData.quantity),
+        low_stock_threshold: String(initialData.low_stock_threshold),
+      })
+      return
+    }
+
+    setForm({
+      name: '',
+      sku: '',
+      description: '',
+      price: '',
+      quantity: '',
+      low_stock_threshold: '',
+    })
+  }, [mode, initialData])
+
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = event.target
-
     setForm((prev) => ({
       ...prev,
       [name]: value,
@@ -81,16 +111,14 @@ export default function ProductForm({ onSubmit, onCancel, loading }: Props) {
       return
     }
 
-    const payload: CreateProductPayload = {
+    await onSubmit({
       name: form.name.trim(),
       sku: form.sku.trim(),
       price: priceNum,
       quantity: quantityNum,
       low_stock_threshold: lowStockNum,
       ...(form.description.trim() && { description: form.description.trim() }),
-    }
-
-    await onSubmit(payload)
+    })
   }
 
   return (
@@ -99,9 +127,13 @@ export default function ProductForm({ onSubmit, onCancel, loading }: Props) {
       className="rounded-xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg"
     >
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-white">Add product</h2>
+        <h2 className="text-xl font-semibold text-white">
+          {mode === 'create' ? 'Add product' : 'Edit product'}
+        </h2>
         <p className="mt-1 text-sm text-slate-400">
-          Create a new inventory item.
+          {mode === 'create'
+            ? 'Create a new inventory item.'
+            : 'Update the selected product.'}
         </p>
       </div>
 
@@ -194,7 +226,13 @@ export default function ProductForm({ onSubmit, onCancel, loading }: Props) {
           disabled={loading}
           className="bg-cyan-600 text-white transition hover:bg-cyan-500"
         >
-          {loading ? 'Creating...' : 'Create product'}
+          {loading
+            ? mode === 'create'
+              ? 'Creating...'
+              : 'Saving...'
+            : mode === 'create'
+              ? 'Create product'
+              : 'Save changes'}
         </Button>
 
         <Button
