@@ -26,3 +26,9 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local Claude Code project instructions
+CLAUDE.md
+
+# Claude Code local settings (per-developer, not shared)
+.claude/settings.local.json
