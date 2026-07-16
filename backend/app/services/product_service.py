@@ -26,7 +26,9 @@ class ProductService:
 
         # 1. Check SKU uniqueness
         existing = await self.db.execute(
-            select(Product).where(Product.sku == data.sku)
+            select(Product).where(
+                Product.sku == data.sku,
+            )
         )
         if existing.scalar_one_or_none():
             logger.warning(             # ← warning, not info
