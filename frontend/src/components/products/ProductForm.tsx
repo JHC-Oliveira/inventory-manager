@@ -119,7 +119,9 @@ export default function ProductForm({
       price: priceNum,
       quantity: quantityNum,
       low_stock_threshold: lowStockNum,
-      ...(form.description.trim() && { description: form.description.trim() }),
+      ...(mode === 'create'
+        ? form.description.trim() && { description: form.description.trim() }
+        : { description: form.description.trim() }),
     })
   }
 
