@@ -65,6 +65,8 @@ U -> Router -> Service -> Database / Redis / RabbitMQ -> Response
 - **Utils** handle infrastructure helpers like JWT, Redis, and RabbitMQ.
 - **Worker** consumes queue messages outside the API process.
 
+This keeps routers small, services testable, and infrastructure logic isolated in utils.
+
 ---
 
 ## System Design Summary
@@ -139,6 +141,27 @@ request can pause while the event loop handles other work
 
 ---
 
+## Frontend
+
+A React 19 + Vite + TypeScript client lives in `frontend/`, talking to the API through
+`/api/v1`.
+
+| Layer | Technology |
+| ------------- | ---------------------------------- |
+| UI framework | React 19 + Vite |
+| Language | TypeScript |
+| Auth state | Zustand |
+| Server state | TanStack Query |
+| Routing | React Router |
+| Forms / validation | react-hook-form + Zod |
+| Styling / components | Tailwind + shadcn/radix |
+| HTTP client | axios (Bearer token injected via interceptor) |
+
+**Done:** login/register, protected routes, product dashboard (list, create, edit, soft delete).
+**In progress:** stock adjustment UI, order management UI, low-stock dashboard.
+
+---
+
 ## Getting Started
 
 ### Prerequisites
@@ -172,7 +195,7 @@ RABBITMQ_PASSWORD=your_secure_password
 docker compose up --build
 ```
 
-Docker starts **PostgreSQL → Redis → RabbitMQ → API → Worker** in the correct order with health checks.
+Docker starts **PostgreSQL → Redis → RabbitMQ → API → Worker → Frontend** in the correct order with health checks. The frontend dev server is available at [http://localhost:5173](http://localhost:5173).
 
 ### 4. Run database migrations
 
@@ -319,29 +342,6 @@ Example headers:
 
 ---
 
-## Current Architecture
-
-### Backend flow
-
-```text
-HTTP request
-  ↓
-Router
-  ↓
-Service
-  ├─ DB query/write
-  ├─ Redis cache read/write
-  └─ RabbitMQ publish after commit
-  ↓
-Schema response
-```
-
-### Why this layout works
-
-It keeps the API easy to maintain. Routers stay small, services stay testable, and infrastructure logic stays isolated in utils.
-
----
-
 ## Project Structure
 
 ```text
@@ -363,6 +363,7 @@ inventory-manager/
 │   │   ├── database.py
 │   │   ├── main.py
 │   │   ├── dependencies/
+│   │   ├── middleware/
 │   │   ├── models/
 │   │   ├── routers/
 │   │   ├── schemas/
@@ -373,15 +374,31 @@ inventory-manager/
 │   │   ├── test_auth.py
 │   │   ├── test_orders.py
 │   │   ├── test_products.py
+│   │   ├── test_reports.py
 │   │   └── test_stock.py
 │   └── worker/
 │       └── consumer.py
-└── worker/
+├── worker/
+│   ├── Dockerfile
+│   ├── main.py
+│   ├── pytest.ini
+│   └── tests/
+│       └── test_worker.py
+└── frontend/
     ├── Dockerfile
-    ├── main.py
-    ├── pytest.ini
-    └── tests/
-        └── test_worker.py
+    ├── package.json
+    ├── vite.config.ts
+    └── src/
+        ├── api/         (client.ts, auth.ts, products.ts)
+        ├── components/
+        │   ├── layout/    (ProtectedRoute.tsx)
+        │   ├── products/  (ProductCard.tsx, ProductForm.tsx, ProductsSkeleton.tsx)
+        │   └── ui/        (shadcn components)
+        ├── lib/          (utils.ts, errors.ts)
+        ├── pages/        (LoginPage.tsx, RegisterPage.tsx, DashboardPage.tsx)
+        ├── store/        (authStore.ts)
+        ├── App.tsx
+        └── main.tsx
 ```
 
 ---
@@ -419,7 +436,7 @@ See `backend/.env.example` for the full list. Key variables:
 docker compose exec api pytest tests/ -v
 ```
 
-Current backend test total: **79 passing tests**.
+Current backend test total: **90 passing tests** (auth 8 · products 22 · stock 21 · orders 25 · reports 11 · worker 3).
 
 ---
 
