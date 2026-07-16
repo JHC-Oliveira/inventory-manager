@@ -26,3 +26,6 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local Claude Code project instructions
+CLAUDE.md
