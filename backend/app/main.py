@@ -129,11 +129,21 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    messages = []
+    for err in exc.errors():
+        msg = err["msg"]
+        if msg.startswith("Value error, "):
+            msg = msg.removeprefix("Value error, ")
+        if err["loc"][-1] == "email" and "valid email address" in msg:
+            msg = "Please enter a valid email address"
+        messages.append(msg[0].upper() + msg[1:])
+
     return error_response(
         "validation_error",
-        "Invalid request body",
+        "\n ".join(messages) if messages else "Invalid request body",
         status.HTTP_422_UNPROCESSABLE_ENTITY,
     )
+
 
 
 @app.exception_handler(Exception)

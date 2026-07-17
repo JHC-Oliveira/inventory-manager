@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { register } from '../api/auth'
+import { getErrorMessage } from '../lib/errors'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
@@ -16,8 +17,8 @@ export default function RegisterPage() {
     try {
       await register({ email, password, full_name: fullName })
       navigate('/login')
-    } catch {
-      setError('Registration failed')
+    } catch (err) {
+      setError(getErrorMessage(err, 'Registration failed'))
     }
   }
 
@@ -44,10 +45,19 @@ export default function RegisterPage() {
             placeholder="Password"
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value)
+              setError('')
+            }}
           />
+          <ul className="list-disc space-y-1 pl-5 text-xs text-slate-400">
+            <li>Password must be at least 8 characters</li>
+            <li>Password must contain at least one uppercase letter</li>
+            <li>Password must contain at least one number</li>
+            <li>Full name must be at least 2 characters</li>
+          </ul>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-400 whitespace-pre-line">{error}</p>}
 
           <button className="w-full rounded-lg bg-indigo-600 py-2 font-medium text-white hover:bg-indigo-500">
             Register
