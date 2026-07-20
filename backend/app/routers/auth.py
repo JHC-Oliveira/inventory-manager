@@ -1,11 +1,11 @@
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.database import get_db
 from app.models.user import User
-from app.schemas.user import UserRegister, TokenResponse, LoginRequest, RefreshRequest, LogoutRequest, UserResponse, RefreshResponse
+from app.schemas.user import UserRegister, TokenResponse, LoginRequest, UserResponse, RefreshResponse
 from app.utils.password import hash_password, verify_password
 from app.utils.jwt import create_access_token, create_refresh_token, verify_token
 from app.utils.redis_client import (
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
+async def register(user_data: UserRegister, response: Response, db: AsyncSession = Depends(get_db)):
     """Register a new user and return tokens."""
 
     # 1. Check if email already exists
@@ -56,12 +56,24 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
 
     logger.info("user_registered", user_id=new_user.id, email=new_user.email)
 
-    return TokenResponse(access_token=access_token, refresh_token=refresh_token, user=UserResponse.model_validate(new_user))
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+        path=f"{settings.api_prefix}/auth",
+        max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
+    )
+
+    return TokenResponse(access_token=access_token, user=UserResponse.model_validate(new_user))
+
 
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
     data: LoginRequest,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -102,60 +114,94 @@ async def login(
 
     logger.info("user_logged_in", user_id=user.id)
 
-    return TokenResponse(access_token=access_token, refresh_token=refresh_token, user=UserResponse.model_validate(user))
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+        path=f"{settings.api_prefix}/auth",
+        max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
+    )
+    
+    return TokenResponse(
+        access_token=access_token, user=UserResponse.model_validate(user)
+    )
 
 
 @router.post("/refresh", response_model=RefreshResponse)
-async def refresh_token(data: RefreshRequest):
-    """Issue a new access token using a valid refresh token."""
+async def refresh_token(request: Request, db: AsyncSession = Depends(get_db)):
+    """Issue a new access token using the refresh token cookie."""
 
-    # 1. Verify the token is a valid JWT refresh token
+    # 1. Read the refresh token out of the cookie instead of the request body
+    token = request.cookies.get("refresh_token")
+    if token is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    # 2. Verify it's a valid JWT refresh token
     try:
-        token_data = verify_token(data.refresh_token, expected_type="refresh")
+        token_data = verify_token(token, expected_type="refresh")
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e),
         )
 
-    # 2. Check if the token exists in Redis (not logged out)
+    # 3. Check if the token exists in Redis (not logged out)
     stored_token = await get_refresh_token(user_id=token_data.user_id)
-    if stored_token is None or stored_token != data.refresh_token:
+    if stored_token is None or stored_token != token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token is invalid or has been revoked",
         )
 
-    # 3. Issue a new access token
+    # 4. Look up the user — the frontend needs full user info to restore its state
+    result = await db.execute(select(User).where(User.id == token_data.user_id))
+    user = result.scalar_one_or_none()
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account is no longer active",
+        )
+
+    # 5. Issue a new access token
     new_access_token = create_access_token(
-        user_id=token_data.user_id,
-        is_admin=token_data.is_admin,
+        user_id=user.id,
+        is_admin=user.is_admin,
     )
 
-    logger.info("token_refreshed", user_id=token_data.user_id)
+    logger.info("token_refreshed", user_id=user.id)
 
     return RefreshResponse(
         access_token=new_access_token,
-        refresh_token=data.refresh_token,
+        user=UserResponse.model_validate(user),
     )
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
-async def logout(data: LogoutRequest):
+async def logout(request: Request, response: Response):
     """Logout by revoking the refresh token."""
 
-    # 1. Verify it's a valid refresh token
-    try:
-        token_data = verify_token(data.refresh_token, expected_type="refresh")
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-        )
+    token = request.cookies.get("refresh_token")
 
-    # 2. Delete from Redis — token is now dead
-    await delete_refresh_token(user_id=token_data.user_id)
+    # No cookie, or an already-invalid one, still ends in "logged out" — don't error
+    if token is not None:
+        try:
+            token_data = verify_token(token, expected_type="refresh")
+            await delete_refresh_token(user_id=token_data.user_id)
+            logger.info("user_logged_out", user_id=token_data.user_id)
+        except ValueError:
+            pass
 
-    logger.info("user_logged_out", user_id=token_data.user_id)
+    response.delete_cookie(
+        key="refresh_token",
+        path=f"{settings.api_prefix}/auth",
+        samesite="lax",
+        secure=settings.cookie_secure,
+        httponly=True,
+    )
 
     return {"message": "Successfully logged out"}
