@@ -243,9 +243,8 @@ export default function StockPage() {
                       </td>
                       <td className="py-2 pr-4">{m.movement_type}</td>
                       <td
-                        className={`py-2 pr-4 font-semibold ${
-                          m.quantity_change > 0 ? 'text-emerald-400' : 'text-red-400'
-                        }`}
+                        className={`py-2 pr-4 font-semibold ${m.quantity_change > 0 ? 'text-emerald-400' : 'text-red-400'
+                          }`}
                       >
                         {m.quantity_change > 0 ? '+' : ''}
                         {m.quantity_change}
@@ -253,7 +252,13 @@ export default function StockPage() {
                       <td className="py-2 pr-4 text-slate-400">
                         {m.quantity_before} → {m.quantity_after}
                       </td>
-                      <td className="py-2 pr-4 text-slate-400">{m.note ?? '—'}</td>
+                      <td
+                        className="max-w-[200px] truncate py-2 pr-4 text-slate-400"
+                        title={m.note ?? undefined}
+                      >
+                        {m.note ?? '—'}
+                      </td>
+
                     </tr>
                   ))}
                 </tbody>
