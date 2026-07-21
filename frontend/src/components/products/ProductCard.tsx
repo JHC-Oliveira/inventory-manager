@@ -9,6 +9,7 @@ type Props = {
   isLowStock: boolean
   isActive: boolean
   canManage?: boolean
+  isEditing?: boolean
   onEdit?: () => void
   onDelete?: () => void
   onManageStock?: () => void
@@ -23,85 +24,88 @@ export default function ProductCard({
   isLowStock,
   isActive,
   canManage = false,
+  isEditing = false,
   onEdit,
   onDelete,
   onManageStock,
 }: Props) {
   return (
-    <article className="rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-sm transition hover:border-slate-700 hover:bg-slate-800/80">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="text-lg font-semibold text-white">{name}</h3>
-          <p className="mt-1 text-sm text-slate-400">SKU {sku}</p>
+    <tr
+      className={`border-b border-slate-800/60 transition ${
+        isEditing ? 'bg-slate-800/60' : 'hover:bg-slate-800/40'
+      }`}
+    >
+      <td className="py-3 pr-4">
+        <p className="font-semibold text-white">{name}</p>
+        <p className="text-xs text-slate-400">SKU {sku}</p>
+        {description && (
+          <p
+            className="mt-0.5 max-w-[240px] truncate text-xs text-slate-500"
+            title={description}
+          >
+            {description}
+          </p>
+        )}
+      </td>
 
-          {description && (
-            <p className="mt-2 text-sm text-slate-500">{description}</p>
-          )}
-        </div>
+      <td className="py-3 pr-4 text-slate-300">{quantity}</td>
 
+      <td className="py-3 pr-4 text-slate-300">€{Number(price).toFixed(2)}</td>
+
+      <td className="py-3 pr-4">
         <span
-          className={`rounded-full px-2 py-1 text-xs font-medium ${isActive
+          className={`rounded-full px-2 py-1 text-xs font-medium ${
+            isActive
               ? 'bg-emerald-950 text-emerald-300'
               : 'bg-slate-800 text-slate-400'
-            }`}
+          }`}
         >
           {isActive ? 'Active' : 'Inactive'}
         </span>
-      </div>
+      </td>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-        <div className="rounded-lg bg-slate-800 p-3">
-          <p className="text-slate-400">Quantity</p>
-          <p className="mt-1 font-semibold text-white">{quantity}</p>
-        </div>
+      <td className="py-3 pr-4">
+        {isLowStock && (
+          <span className="rounded-full bg-amber-950 px-2 py-1 text-xs font-medium text-amber-300">
+            Low stock
+          </span>
+        )}
+      </td>
 
-        <div className="rounded-lg bg-slate-800 p-3">
-          <p className="text-slate-400">Price</p>
-          <p className="mt-1 font-semibold text-white">
-            €{Number(price).toFixed(2)}
-          </p>
-        </div>
-      </div>
-
-      {isLowStock && (
-        <p className="mt-4 rounded-lg bg-amber-950 px-3 py-2 text-sm text-amber-300">
-          Low stock — reorder soon
-        </p>
-      )}
-
-      <div className="mt-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onManageStock}
-          className="w-full transition hover:bg-slate-800 hover:text-white"
-        >
-          Manage stock
-        </Button>
-      </div>
-
-
-      {canManage && (
-        <div className="mt-4 flex gap-2">
+      <td className="py-3 pr-4">
+        <div className="flex flex-wrap gap-2">
           <Button
             type="button"
             variant="outline"
-            onClick={onEdit}
+            onClick={onManageStock}
             className="transition hover:bg-slate-800 hover:text-white"
           >
-            Edit
+            Manage stock
           </Button>
 
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={onDelete}
-            className="transition hover:opacity-90"
-          >
-            Delete
-          </Button>
+          {canManage && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onEdit}
+                className="transition hover:bg-slate-800 hover:text-white"
+              >
+                {isEditing ? 'Cancel' : 'Edit'}
+              </Button>
+
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={onDelete}
+                className="transition hover:opacity-90"
+              >
+                Delete
+              </Button>
+            </>
+          )}
         </div>
-      )}
-    </article>
+      </td>
+    </tr>
   )
 }

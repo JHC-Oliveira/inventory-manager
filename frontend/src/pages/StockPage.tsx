@@ -126,8 +126,8 @@ export default function StockPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <header className="border-b border-slate-800 bg-slate-900/60 px-8 py-6">
-        <Link to="/dashboard" className="text-sm text-slate-400 hover:text-white">
-          ← Back to dashboard
+        <Link to="/products" className="text-sm text-slate-400 hover:text-white">
+          ← Back to products
         </Link>
 
         {product && (
