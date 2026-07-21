@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
-import DashboardPage from './pages/DashboardPage'
+import ProductsPage from './pages/ProductsPage'
+import MovementsPage from './pages/MovementsPage'
 import StockPage from './pages/StockPage'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import { refresh } from './api/auth'
@@ -15,7 +16,7 @@ export default function App() {
   useEffect(() => {
     refresh()
       .then((data) => setAuth(data.access_token, data.user))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setCheckingAuth(false))
   }, [])
 
@@ -28,11 +29,13 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/dashboard" element={<Navigate to="/products" replace />} />
+          <Route path="/products" element={<ProductsPage />} />
+          <Route path="/movements" element={<MovementsPage />} />
           <Route path="/products/:id/stock" element={<StockPage />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/products" replace />} />
       </Routes>
     </BrowserRouter>
   )
