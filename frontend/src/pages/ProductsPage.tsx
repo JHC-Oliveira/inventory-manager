@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import {
@@ -60,6 +60,14 @@ export default function ProductsPage() {
     setSelectedProduct(product)
     setFormError('')
     setShowForm(true)
+  }
+
+    const handleEditClick = (product: Product) => {
+    if (showForm && formMode === 'edit' && selectedProduct?.id === product.id) {
+      closeForm()
+    } else {
+      openEditForm(product)
+    }
   }
 
   const closeForm = () => {
@@ -133,16 +141,17 @@ export default function ProductsPage() {
       </div>
 
       <main className="space-y-8 px-8 py-8">
-        {user?.is_admin && showForm && (
+        {user?.is_admin && showForm && formMode === 'create' && (
           <ProductForm
-            mode={formMode}
-            initialData={selectedProduct}
+            mode="create"
+            initialData={null}
             onSubmit={handleSubmit}
             onCancel={closeForm}
             loading={saving}
             externalError={formError}
           />
         )}
+
 
         {pageError && (
           <div className="rounded-xl border border-red-900 bg-red-950 p-4 text-red-300">
@@ -158,24 +167,60 @@ export default function ProductsPage() {
           </div>
         )}
 
-        {!loading && products.length > 0 && (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                name={product.name}
-                sku={product.sku}
-                description={product.description}
-                quantity={product.quantity}
-                price={product.price}
-                isLowStock={product.is_low_stock}
-                isActive={product.is_active}
-                canManage={!!user?.is_admin}
-                onEdit={() => openEditForm(product)}
-                onDelete={() => handleDelete(product)}
-                onManageStock={() => navigate(`/products/${product.id}/stock`)}
-              />
-            ))}
+                {!loading && products.length > 0 && (
+          <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/80">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-800 text-slate-400">
+                  <th className="px-4 py-3">Product</th>
+                  <th className="px-4 py-3">Quantity</th>
+                  <th className="px-4 py-3">Price</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Low stock</th>
+                  <th className="px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((product) => {
+                  const isEditing =
+                    showForm && formMode === 'edit' && selectedProduct?.id === product.id
+
+                  return (
+                    <Fragment key={product.id}>
+                      <ProductCard
+                        name={product.name}
+                        sku={product.sku}
+                        description={product.description}
+                        quantity={product.quantity}
+                        price={product.price}
+                        isLowStock={product.is_low_stock}
+                        isActive={product.is_active}
+                        canManage={!!user?.is_admin}
+                        isEditing={isEditing}
+                        onEdit={() => handleEditClick(product)}
+                        onDelete={() => handleDelete(product)}
+                        onManageStock={() => navigate(`/products/${product.id}/stock`)}
+                      />
+
+                      {isEditing && (
+                        <tr>
+                          <td colSpan={6} className="bg-slate-950/60 px-4 py-4">
+                            <ProductForm
+                              mode="edit"
+                              initialData={selectedProduct}
+                              onSubmit={handleSubmit}
+                              onCancel={closeForm}
+                              loading={saving}
+                              externalError={formError}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </main>
