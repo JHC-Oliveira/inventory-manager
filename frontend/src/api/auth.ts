@@ -21,15 +21,14 @@ export type UserResponse = {
 
 export type TokenResponse = {
   access_token: string
-  refresh_token: string
   token_type: string
   user: UserResponse
 }
 
 export type RefreshResponse = {
   access_token: string
-  refresh_token: string
   token_type: string
+  user: UserResponse
 }
 
 export const login = (data: LoginPayload): Promise<TokenResponse> =>
@@ -38,8 +37,8 @@ export const login = (data: LoginPayload): Promise<TokenResponse> =>
 export const register = (data: RegisterPayload): Promise<TokenResponse> =>
   client.post('/auth/register', data).then((res) => res.data)
 
-export const logout = (refreshToken: string): Promise<void> =>
-  client.post('/auth/logout', { refresh_token: refreshToken }).then((res) => res.data)
+export const logout = (): Promise<void> =>
+  client.post('/auth/logout').then((res) => res.data)
 
-export const refresh = (refreshToken: string): Promise<RefreshResponse> =>
-  client.post('/auth/refresh', { refresh_token: refreshToken }).then((res) => res.data)
+export const refresh = (): Promise<RefreshResponse> =>
+  client.post('/auth/refresh').then((res) => res.data)

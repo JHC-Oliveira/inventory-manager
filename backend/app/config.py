@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     @property
     def allowed_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.allowed_origins.split(",")]
+    
+    @property
+    def cookie_secure(self) -> bool:
+        return self.app_env == "production"
 
 @lru_cache
 def get_settings() -> Settings:

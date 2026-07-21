@@ -42,7 +42,6 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     """Schema for the token pair returned after login or registration."""
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
     user: UserResponse
 
@@ -56,14 +55,8 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
     
-class RefreshRequest(BaseModel):
-    refresh_token: str
-    
 class RefreshResponse(BaseModel):
     """Return on in refresh— only refresh the token."""
     access_token: str
-    refresh_token: str
+    user: UserResponse
     token_type: str = "bearer"
-
-class LogoutRequest(BaseModel):
-    refresh_token: str

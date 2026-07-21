@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { login } from '../api/auth'
 import { useAuthStore } from '../store/authStore'
+import { getErrorMessage } from '../lib/errors'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -16,10 +17,10 @@ export default function LoginPage() {
 
     try {
       const data = await login({ email, password })
-      setAuth(data.access_token, data.refresh_token ,data.user)
+      setAuth(data.access_token, data.user)
       navigate('/dashboard')
-    } catch {
-      setError('Invalid email or password')
+    } catch (err) {
+      setError(getErrorMessage(err, 'Invalid email or password'))
     }
   }
 
@@ -41,10 +42,13 @@ export default function LoginPage() {
             placeholder="Password"
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value)
+              setError('')
+            }}
           />
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-400 whitespace-pre-line">{error}</p>}
 
           <button className="w-full rounded-lg bg-indigo-600 py-2 font-medium text-white hover:bg-indigo-500">
             Sign in

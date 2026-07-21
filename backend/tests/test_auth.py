@@ -12,8 +12,8 @@ async def test_register_success(client):
     assert response.status_code == 201
     data = response.json()
     assert "access_token" in data
-    assert "refresh_token" in data
-
+    assert "refresh_token" not in data
+    assert "refresh_token" in response.cookies
 
 @pytest.mark.asyncio
 async def test_register_duplicate_email(client):
@@ -41,8 +41,8 @@ async def test_login_success(client):
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
-    assert "refresh_token" in data
-
+    assert "refresh_token" not in data
+    assert "refresh_token" in response.cookies
 
 @pytest.mark.asyncio
 async def test_login_wrong_password(client):
@@ -97,3 +97,24 @@ async def test_protected_route_with_invalid_token(client):
         "Authorization": "Bearer invalidtoken123"
     })
     assert response.status_code == 401
+
+@pytest.mark.asyncio
+async def test_refresh_and_logout_cookie_flow(client):
+    await client.post(f"{API_PREFIX}/auth/register", json={
+        "email": "joao@example.com",
+        "password": "StrongPass123",
+        "full_name": "Joao Henrique"
+    })
+    login = await client.post(f"{API_PREFIX}/auth/login", json={
+        "email": "joao@example.com",
+        "password": "StrongPass123"
+    })
+    assert "refresh_token" in login.cookies
+
+    refresh = await client.post(f"{API_PREFIX}/auth/refresh")
+    assert refresh.status_code == 200
+    assert "user" in refresh.json()
+
+    logout = await client.post(f"{API_PREFIX}/auth/logout")
+    assert logout.status_code == 200
+    assert client.cookies.get("refresh_token") is None

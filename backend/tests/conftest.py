@@ -31,13 +31,28 @@ async def client():
 
     app.dependency_overrides[get_db] = override_get_db
 
-    # Mock for Redis
+    # Mock for Redis — backed by a dict so setex/get/delete actually
+    # remember values across calls, instead of get() always returning None
+    fake_redis_store: dict[str, str] = {}
+
+    async def fake_setex(key, ttl, value):
+        fake_redis_store[key] = value
+        return True
+
+    async def fake_get(key):
+        return fake_redis_store.get(key)
+
+    async def fake_delete(key):
+        fake_redis_store.pop(key, None)
+        return 1
+
     mock_redis = AsyncMock()
-    mock_redis.setex = AsyncMock(return_value=True)
-    mock_redis.get = AsyncMock(return_value=None)
-    mock_redis.delete = AsyncMock(return_value=1)
+    mock_redis.setex = AsyncMock(side_effect=fake_setex)
+    mock_redis.get = AsyncMock(side_effect=fake_get)
+    mock_redis.delete = AsyncMock(side_effect=fake_delete)
     mock_redis.scan = AsyncMock(return_value=(0, []))
     mock_redis.aclose = AsyncMock(return_value=None)
+
 
     with patch("app.utils.redis_client.get_redis", new=AsyncMock(return_value=mock_redis)):
 
