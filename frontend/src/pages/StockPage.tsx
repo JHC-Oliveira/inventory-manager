@@ -239,7 +239,7 @@ export default function StockPage() {
                   {movements.map((m) => (
                     <tr key={m.id} className="border-b border-slate-800/60">
                       <td className="py-2 pr-4 text-slate-400">
-                        {new Date(m.created_at).toLocaleString()}
+                        {new Date(m.created_at).toLocaleDateString('en-GB')}
                       </td>
                       <td className="py-2 pr-4">{m.movement_type}</td>
                       <td

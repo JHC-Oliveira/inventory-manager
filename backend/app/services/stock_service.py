@@ -8,6 +8,8 @@ from app.models.stock_movement import StockMovement
 from app.schemas.stock_movement import StockAdjustRequest, StockMovementListResponse, StockMovementResponse
 from app.utils.rabbitmq import publish_low_stock_alert
 from app.utils.redis_client import cache_get, cache_set, cache_delete_pattern
+from app.services.product_service import PRODUCTS_CACHE_PATTERN
+
 
 logger = structlog.get_logger()
 
@@ -90,9 +92,11 @@ class StockService:
             await self.db.refresh(movement)
             
             await cache_delete_pattern(
-                STOCK_HISTORY_CACHE_PATTERN.format(product_id=product_id)
+                STOCK_HISTORY_CACHE_PATTERN.format(product_id=product_id),
             )
             
+            await cache_delete_pattern(PRODUCTS_CACHE_PATTERN)
+                        
             logger.info(
                 "stock_history_cache_invalidated",
                 pattern=STOCK_HISTORY_CACHE_PATTERN.format(product_id=product_id),

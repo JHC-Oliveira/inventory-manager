@@ -204,6 +204,7 @@ export default function DashboardPage() {
                 canManage={!!user?.is_admin}
                 onEdit={() => openEditForm(product)}
                 onDelete={() => handleDelete(product)}
+                onManageStock={() => navigate(`/products/${product.id}/stock`)}
               />
             ))}
           </div>
