@@ -17,7 +17,7 @@ export default function LoginPage() {
 
     try {
       const data = await login({ email, password })
-      setAuth(data.access_token, data.refresh_token, data.user)
+      setAuth(data.access_token, data.user)
       navigate('/dashboard')
     } catch (err) {
       setError(getErrorMessage(err, 'Invalid email or password'))

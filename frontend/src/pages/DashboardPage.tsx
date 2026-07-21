@@ -20,7 +20,6 @@ export default function DashboardPage() {
   const navigate = useNavigate()
 
   const user = useAuthStore((s) => s.user)
-  const refreshToken = useAuthStore((s) => s.refreshToken)
   const clearAuth = useAuthStore((s) => s.logout)
 
   const [products, setProducts] = useState<Product[]>([])
@@ -34,10 +33,8 @@ export default function DashboardPage() {
   const [saving, setSaving] = useState(false)
 
   const handleLogout = async () => {
-    try {
-      if (refreshToken) {
-        await logoutApi(refreshToken)
-      }
+    try {      
+      await logoutApi()      
     } catch {
       // ignore — logging out regardless
     } finally {
