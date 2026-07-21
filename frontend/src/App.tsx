@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
+import StockPage from './pages/StockPage'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import { refresh } from './api/auth'
 import { useAuthStore } from './store/authStore'
@@ -28,6 +29,7 @@ export default function App() {
 
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/products/:id/stock" element={<StockPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

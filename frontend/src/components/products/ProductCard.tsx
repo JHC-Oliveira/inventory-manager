@@ -11,6 +11,7 @@ type Props = {
   canManage?: boolean
   onEdit?: () => void
   onDelete?: () => void
+  onManageStock?: () => void
 }
 
 export default function ProductCard({
@@ -24,6 +25,7 @@ export default function ProductCard({
   canManage = false,
   onEdit,
   onDelete,
+  onManageStock,
 }: Props) {
   return (
     <article className="rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-sm transition hover:border-slate-700 hover:bg-slate-800/80">
@@ -38,11 +40,10 @@ export default function ProductCard({
         </div>
 
         <span
-          className={`rounded-full px-2 py-1 text-xs font-medium ${
-            isActive
+          className={`rounded-full px-2 py-1 text-xs font-medium ${isActive
               ? 'bg-emerald-950 text-emerald-300'
               : 'bg-slate-800 text-slate-400'
-          }`}
+            }`}
         >
           {isActive ? 'Active' : 'Inactive'}
         </span>
@@ -67,6 +68,18 @@ export default function ProductCard({
           Low stock — reorder soon
         </p>
       )}
+
+      <div className="mt-4">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onManageStock}
+          className="w-full transition hover:bg-slate-800 hover:text-white"
+        >
+          Manage stock
+        </Button>
+      </div>
+
 
       {canManage && (
         <div className="mt-4 flex gap-2">
