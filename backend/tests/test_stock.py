@@ -430,9 +430,11 @@ async def test_adjust_stock_invalidates_history_cache(
 
     assert response.status_code == 200
     
-    assert mock_cache_delete_pattern.await_count == 2
+    assert mock_cache_delete_pattern.await_count == 3
     mock_cache_delete_pattern.assert_any_await(f"stock:history:{product['id']}:*")
     mock_cache_delete_pattern.assert_any_await("products:list:*")
+    mock_cache_delete_pattern.assert_any_await("stock:movements:*")
+
 
     
     

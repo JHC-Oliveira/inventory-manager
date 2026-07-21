@@ -47,3 +47,18 @@ export const getStockHistory = async (
   })
   return response.data as StockMovementListResponse
 }
+
+export const getAllMovements = async (
+  page = 1,
+  pageSize = 10,
+  movementType?: MovementType
+): Promise<StockMovementListResponse> => {
+  const response = await client.get('/stock/movements', {
+    params: {
+      page,
+      page_size: pageSize,
+      ...(movementType && { movement_type: movementType }),
+    },
+  })
+  return response.data as StockMovementListResponse
+}
