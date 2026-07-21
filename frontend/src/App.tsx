@@ -1,10 +1,25 @@
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import ProtectedRoute from './components/layout/ProtectedRoute'
+import { refresh } from './api/auth'
+import { useAuthStore } from './store/authStore'
 
 export default function App() {
+  const setAuth = useAuthStore((s) => s.setAuth)
+  const [checkingAuth, setCheckingAuth] = useState(true)
+
+  useEffect(() => {
+    refresh()
+      .then((data) => setAuth(data.access_token, data.user))
+      .catch(() => {})
+      .finally(() => setCheckingAuth(false))
+  }, [])
+
+  if (checkingAuth) return null
+
   return (
     <BrowserRouter>
       <Routes>
