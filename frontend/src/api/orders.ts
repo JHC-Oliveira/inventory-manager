@@ -52,7 +52,10 @@ export const cancelOrder = async (orderId: string): Promise<Order> => {
   return response.data as Order
 }
 
-export const getOrders = async (page = 1, pageSize = 10): Promise<OrderListResponse> => {
+export const getOrders = async (
+  page = 1,
+  pageSize = 10,
+): Promise<OrderListResponse> => {
   const response = await client.get('/orders', {
     params: { page, page_size: pageSize },
   })

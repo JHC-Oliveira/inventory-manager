@@ -58,7 +58,9 @@ export default function OrderForm({
         return
       }
       if (seen.has(line.product_id)) {
-        setError('Each product can only appear once — combine quantities into one line.')
+        setError(
+          'Each product can only appear once — combine quantities into one line.',
+        )
         return
       }
       seen.add(line.product_id)
@@ -83,12 +85,15 @@ export default function OrderForm({
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-white">New order</h2>
         <p className="mt-1 text-sm text-slate-400">
-          Pick products and quantities — stock is checked and shipped automatically.
+          Pick products and quantities — stock is checked and shipped
+          automatically.
         </p>
       </div>
 
       <div>
-        <label className="mb-2 block text-sm text-slate-300">Customer name</label>
+        <label className="mb-2 block text-sm text-slate-300">
+          Customer name
+        </label>
         <input
           value={customerName}
           onChange={(e) => setCustomerName(e.target.value)}
