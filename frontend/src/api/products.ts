@@ -48,6 +48,12 @@ export const getProducts = async (page = 1, pageSize = 12): Promise<ProductsResp
   return response.data as ProductsResponse
 }
 
+export const getProduct = async (productId: string): Promise<Product> => {
+  const response = await client.get(`/products/${productId}`)
+  return response.data as Product
+}
+
+
 export const createProduct = async (data: CreateProductPayload): Promise<Product> => {
   const response = await client.post('/products', data)
   return response.data as Product

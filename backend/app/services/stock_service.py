@@ -4,15 +4,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.models.product import Product
-from app.models.stock_movement import StockMovement
+from app.models.stock_movement import StockMovement, MovementType
 from app.schemas.stock_movement import StockAdjustRequest, StockMovementListResponse, StockMovementResponse
 from app.utils.rabbitmq import publish_low_stock_alert
 from app.utils.redis_client import cache_get, cache_set, cache_delete_pattern
+from app.services.product_service import PRODUCTS_CACHE_PATTERN
+
 
 logger = structlog.get_logger()
 
 STOCK_HISTORY_CACHE_TTL = 60
 STOCK_HISTORY_CACHE_PATTERN = "stock:history:{product_id}:*"
+ALL_MOVEMENTS_CACHE_PATTERN = "stock:movements:*"
+
 
 class StockService:
     def __init__(self, db: AsyncSession):
@@ -90,9 +94,12 @@ class StockService:
             await self.db.refresh(movement)
             
             await cache_delete_pattern(
-                STOCK_HISTORY_CACHE_PATTERN.format(product_id=product_id)
+                STOCK_HISTORY_CACHE_PATTERN.format(product_id=product_id),
             )
             
+            await cache_delete_pattern(PRODUCTS_CACHE_PATTERN)
+            await cache_delete_pattern(ALL_MOVEMENTS_CACHE_PATTERN)
+                        
             logger.info(
                 "stock_history_cache_invalidated",
                 pattern=STOCK_HISTORY_CACHE_PATTERN.format(product_id=product_id),
@@ -203,6 +210,55 @@ class StockService:
             ttl=STOCK_HISTORY_CACHE_TTL,
             item_count=len(response.items),
             product_id=product_id,
+        )       
+        
+        return response
+
+    async def get_all_movements(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        movement_type: MovementType | None = None,
+    ) -> StockMovementListResponse:
+        """
+        Returns paginated movement history across all products.
+        Most recent movements first. Optionally filtered by movement_type.
+        """
+        cache_key = f"stock:movements:{page}:{page_size}:{movement_type}"
+
+        cached_data = await cache_get(cache_key)
+        if cached_data is not None:
+            logger.info("stock_all_movements_cache_hit", cache_key=cache_key)
+            return StockMovementListResponse(**cached_data)
+
+        query = select(StockMovement)
+        if movement_type is not None:
+            query = query.where(StockMovement.movement_type == movement_type)
+
+        count_result = await self.db.execute(
+            select(func.count()).select_from(query.subquery())
+        )
+        total = count_result.scalar_one()
+
+        offset = (page - 1) * page_size
+        movements_result = await self.db.execute(
+            query.order_by(StockMovement.created_at.desc())
+                 .offset(offset)
+                 .limit(page_size)
+        )
+        movements = list(movements_result.scalars().all())
+
+        response = StockMovementListResponse(
+            items=[StockMovementResponse.model_validate(m) for m in movements],
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=math.ceil(total / page_size) if total > 0 else 1,
         )
 
+        await cache_set(cache_key, response.model_dump(mode="json"), STOCK_HISTORY_CACHE_TTL)
+        logger.info("stock_all_movements_cache_set", cache_key=cache_key, item_count=len(response.items))
+
         return response
+
+    
