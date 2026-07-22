@@ -35,7 +35,7 @@ export default function ProductCard({
         isEditing ? 'bg-slate-800/60' : 'hover:bg-slate-800/40'
       }`}
     >
-      <td className="py-3 pr-4">
+      <td className="px-4 py-3">
         <p className="font-semibold text-white">{name}</p>
         <p className="text-xs text-slate-400">SKU {sku}</p>
         {description && (
@@ -48,11 +48,11 @@ export default function ProductCard({
         )}
       </td>
 
-      <td className="py-3 pr-4 text-slate-300">{quantity}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-slate-300">{quantity}</td>
 
-      <td className="py-3 pr-4 text-slate-300">€{Number(price).toFixed(2)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-slate-300">€{Number(price).toFixed(2)}</td>
 
-      <td className="py-3 pr-4">
+      <td className="whitespace-nowrap px-4 py-3">
         <span
           className={`rounded-full px-2 py-1 text-xs font-medium ${
             isActive
@@ -64,7 +64,7 @@ export default function ProductCard({
         </span>
       </td>
 
-      <td className="py-3 pr-4">
+      <td className="whitespace-nowrap px-4 py-3">
         {isLowStock && (
           <span className="rounded-full bg-amber-950 px-2 py-1 text-xs font-medium text-amber-300">
             Low stock
@@ -72,7 +72,7 @@ export default function ProductCard({
         )}
       </td>
 
-      <td className="py-3 pr-4">
+      <td className="whitespace-nowrap px-4 py-3">
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"

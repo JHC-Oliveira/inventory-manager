@@ -26,7 +26,7 @@ export default function MovementsPage() {
       setPageError('')
       const data = await getAllMovements(
         targetPage,
-        10,
+        20,
         targetFilter === 'ALL' ? undefined : targetFilter
       )
       setMovements(data.items)
