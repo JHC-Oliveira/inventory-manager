@@ -16,7 +16,7 @@ export default function App() {
   useEffect(() => {
     refresh()
       .then((data) => setAuth(data.access_token, data.user))
-      .catch(() => { })
+      .catch(() => {})
       .finally(() => setCheckingAuth(false))
   }, [])
 
@@ -29,7 +29,10 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="/dashboard" element={<Navigate to="/products" replace />} />
+          <Route
+            path="/dashboard"
+            element={<Navigate to="/products" replace />}
+          />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/movements" element={<MovementsPage />} />
           <Route path="/products/:id/stock" element={<StockPage />} />

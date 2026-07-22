@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppHeader from '../components/layout/AppHeader'
-import { getAllMovements, type MovementType, type StockMovement } from '../api/stock'
+import {
+  getAllMovements,
+  type MovementType,
+  type StockMovement,
+} from '../api/stock'
 import { Button } from '../components/ui/button'
 import { getErrorMessage } from '../lib/errors'
 
@@ -20,14 +24,17 @@ export default function MovementsPage() {
   const [loading, setLoading] = useState(true)
   const [pageError, setPageError] = useState('')
 
-  const loadMovements = async (targetPage: number, targetFilter: MovementType | 'ALL') => {
+  const loadMovements = async (
+    targetPage: number,
+    targetFilter: MovementType | 'ALL',
+  ) => {
     try {
       setLoading(true)
       setPageError('')
       const data = await getAllMovements(
         targetPage,
         20,
-        targetFilter === 'ALL' ? undefined : targetFilter
+        targetFilter === 'ALL' ? undefined : targetFilter,
       )
       setMovements(data.items)
       setTotalPages(data.total_pages)
@@ -111,13 +118,17 @@ export default function MovementsPage() {
                             {m.product_sku}
                           </Link>
                         ) : (
-                          <span className="text-slate-500">{m.product_sku} (deleted)</span>
+                          <span className="text-slate-500">
+                            {m.product_sku} (deleted)
+                          </span>
                         )}
                       </td>
                       <td className="py-2 pr-4">{m.movement_type}</td>
                       <td
                         className={`py-2 pr-4 font-semibold ${
-                          m.quantity_change > 0 ? 'text-emerald-400' : 'text-red-400'
+                          m.quantity_change > 0
+                            ? 'text-emerald-400'
+                            : 'text-red-400'
                         }`}
                       >
                         {m.quantity_change > 0 ? '+' : ''}

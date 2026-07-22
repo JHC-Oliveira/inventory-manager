@@ -50,7 +50,9 @@ export default function ProductCard({
 
       <td className="whitespace-nowrap px-4 py-3 text-slate-300">{quantity}</td>
 
-      <td className="whitespace-nowrap px-4 py-3 text-slate-300">€{Number(price).toFixed(2)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-slate-300">
+        €{Number(price).toFixed(2)}
+      </td>
 
       <td className="whitespace-nowrap px-4 py-3">
         <span

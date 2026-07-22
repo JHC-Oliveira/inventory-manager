@@ -31,7 +31,7 @@ export type StockAdjustPayload = {
 
 export const adjustStock = async (
   productId: string,
-  data: StockAdjustPayload
+  data: StockAdjustPayload,
 ): Promise<StockMovement> => {
   const response = await client.post(`/stock/${productId}/adjust`, data)
   return response.data as StockMovement
@@ -40,7 +40,7 @@ export const adjustStock = async (
 export const getStockHistory = async (
   productId: string,
   page = 1,
-  pageSize = 10
+  pageSize = 10,
 ): Promise<StockMovementListResponse> => {
   const response = await client.get(`/stock/${productId}/history`, {
     params: { page, page_size: pageSize },
@@ -51,7 +51,7 @@ export const getStockHistory = async (
 export const getAllMovements = async (
   page = 1,
   pageSize = 10,
-  movementType?: MovementType
+  movementType?: MovementType,
 ): Promise<StockMovementListResponse> => {
   const response = await client.get('/stock/movements', {
     params: {
