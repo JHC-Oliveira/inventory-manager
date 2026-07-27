@@ -8,6 +8,7 @@ import StockPage from './pages/StockPage'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import { refresh } from './api/auth'
 import { useAuthStore } from './store/authStore'
+import OrdersPage from './pages/OrdersPage'
 
 export default function App() {
   const setAuth = useAuthStore((s) => s.setAuth)
@@ -35,6 +36,7 @@ export default function App() {
           />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/movements" element={<MovementsPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
           <Route path="/products/:id/stock" element={<StockPage />} />
         </Route>
 

@@ -6,6 +6,7 @@ import { logout as logoutApi } from '../../api/auth'
 const tabs = [
   { to: '/products', label: 'Products' },
   { to: '/movements', label: 'Movements' },
+  { to: '/orders', label: 'Orders' },
 ]
 
 export default function AppHeader() {
