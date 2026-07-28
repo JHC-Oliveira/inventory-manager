@@ -12,7 +12,6 @@ import OrdersPage from './pages/OrdersPage'
 import DashboardPage from './pages/DashboardPage'
 import ReportsPage from './pages/ReportsPage'
 
-
 export default function App() {
   const setAuth = useAuthStore((s) => s.setAuth)
   const [checkingAuth, setCheckingAuth] = useState(true)
@@ -20,7 +19,7 @@ export default function App() {
   useEffect(() => {
     refresh()
       .then((data) => setAuth(data.access_token, data.user))
-      .catch(() => { })
+      .catch(() => {})
       .finally(() => setCheckingAuth(false))
   }, [])
 

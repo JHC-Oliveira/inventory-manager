@@ -11,7 +11,6 @@ const tabs = [
   { to: '/reports', label: 'Reports', adminOnly: true },
 ]
 
-
 export default function AppHeader() {
   const location = useLocation()
   const navigate = useNavigate()

@@ -92,7 +92,9 @@ export default function ReportsPage() {
 
         <div className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-800 bg-slate-900/80 p-6">
           <div>
-            <label className="mb-2 block text-sm text-slate-300">Start date</label>
+            <label className="mb-2 block text-sm text-slate-300">
+              Start date
+            </label>
             <input
               type="date"
               value={startDate}
@@ -102,7 +104,9 @@ export default function ReportsPage() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm text-slate-300">End date</label>
+            <label className="mb-2 block text-sm text-slate-300">
+              End date
+            </label>
             <input
               type="date"
               value={endDate}
@@ -143,7 +147,9 @@ export default function ReportsPage() {
           <>
             <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="text-xl font-semibold text-white">Stock summary</h2>
+                <h2 className="text-xl font-semibold text-white">
+                  Stock summary
+                </h2>
                 <p className="text-sm text-slate-400">
                   Total inventory value:{' '}
                   <span className="font-semibold text-white">
@@ -160,10 +166,18 @@ export default function ReportsPage() {
                     <thead>
                       <tr className="border-b border-slate-800 text-slate-400">
                         <th className="px-4 py-3">Product</th>
-                        <th className="w-24 px-4 py-3 whitespace-nowrap">Qty</th>
-                        <th className="w-28 px-4 py-3 whitespace-nowrap">Price</th>
-                        <th className="w-32 px-4 py-3 whitespace-nowrap">Value</th>
-                        <th className="w-28 px-4 py-3 whitespace-nowrap">Status</th>
+                        <th className="w-24 px-4 py-3 whitespace-nowrap">
+                          Qty
+                        </th>
+                        <th className="w-28 px-4 py-3 whitespace-nowrap">
+                          Price
+                        </th>
+                        <th className="w-32 px-4 py-3 whitespace-nowrap">
+                          Value
+                        </th>
+                        <th className="w-28 px-4 py-3 whitespace-nowrap">
+                          Status
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -173,8 +187,12 @@ export default function ReportsPage() {
                           className="border-b border-slate-800/60 transition hover:bg-slate-800/40"
                         >
                           <td className="px-4 py-3">
-                            <p className="font-semibold text-white">{item.name}</p>
-                            <p className="text-xs text-slate-400">SKU {item.sku}</p>
+                            <p className="font-semibold text-white">
+                              {item.name}
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              SKU {item.sku}
+                            </p>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-slate-300">
                             {item.quantity}
@@ -214,9 +232,15 @@ export default function ReportsPage() {
                     <thead>
                       <tr className="border-b border-slate-800 text-slate-400">
                         <th className="px-4 py-3">Product</th>
-                        <th className="w-28 px-4 py-3 whitespace-nowrap">Units</th>
-                        <th className="w-28 px-4 py-3 whitespace-nowrap">Orders</th>
-                        <th className="w-32 px-4 py-3 whitespace-nowrap">Revenue</th>
+                        <th className="w-28 px-4 py-3 whitespace-nowrap">
+                          Units
+                        </th>
+                        <th className="w-28 px-4 py-3 whitespace-nowrap">
+                          Orders
+                        </th>
+                        <th className="w-32 px-4 py-3 whitespace-nowrap">
+                          Revenue
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -251,7 +275,9 @@ export default function ReportsPage() {
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg">
-              <h2 className="text-xl font-semibold text-white">Movement history</h2>
+              <h2 className="text-xl font-semibold text-white">
+                Movement history
+              </h2>
 
               {movements.length === 0 ? (
                 <p className="mt-4 text-slate-400">

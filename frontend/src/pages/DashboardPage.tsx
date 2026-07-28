@@ -54,7 +54,10 @@ export default function DashboardPage() {
 
   const kpis = [
     { label: 'Total products', value: totalProducts },
-    { label: 'Inventory value', value: `€${Number(inventoryValue).toFixed(2)}` },
+    {
+      label: 'Inventory value',
+      value: `€${Number(inventoryValue).toFixed(2)}`,
+    },
     { label: 'Low stock items', value: lowStockItems.length },
     { label: 'Movements (7d)', value: recentMovements },
   ]
@@ -66,9 +69,7 @@ export default function DashboardPage() {
       <main className="space-y-8 px-8 py-8">
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="mt-1 text-slate-400">
-            What needs attention right now.
-          </p>
+          <p className="mt-1 text-slate-400">What needs attention right now.</p>
         </div>
 
         {pageError && (
@@ -110,7 +111,9 @@ export default function DashboardPage() {
                     <thead>
                       <tr className="border-b border-slate-800 text-slate-400">
                         <th className="px-4 py-3">Product</th>
-                        <th className="w-24 px-4 py-3 whitespace-nowrap">Qty</th>
+                        <th className="w-24 px-4 py-3 whitespace-nowrap">
+                          Qty
+                        </th>
                         <th className="w-28 px-4 py-3 whitespace-nowrap">
                           Threshold
                         </th>
@@ -129,8 +132,12 @@ export default function DashboardPage() {
                           className="border-b border-slate-800/60 transition hover:bg-slate-800/40"
                         >
                           <td className="px-4 py-3">
-                            <p className="font-semibold text-white">{item.name}</p>
-                            <p className="text-xs text-slate-400">SKU {item.sku}</p>
+                            <p className="font-semibold text-white">
+                              {item.name}
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              SKU {item.sku}
+                            </p>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-slate-300">
                             {item.quantity}
