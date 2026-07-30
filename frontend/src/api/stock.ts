@@ -52,12 +52,16 @@ export const getAllMovements = async (
   page = 1,
   pageSize = 10,
   movementType?: MovementType,
+  startDate?: string,
+  endDate?: string,
 ): Promise<StockMovementListResponse> => {
   const response = await client.get('/stock/movements', {
     params: {
       page,
       page_size: pageSize,
       ...(movementType && { movement_type: movementType }),
+      ...(startDate && { start_date: startDate }),
+      ...(endDate && { end_date: endDate }),
     },
   })
   return response.data as StockMovementListResponse
