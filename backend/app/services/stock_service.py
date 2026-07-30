@@ -1,5 +1,5 @@
 import math
-from datetime import date, datetime
+from datetime import datetime
 
 import structlog
 from sqlalchemy import func, select
@@ -224,8 +224,8 @@ class StockService:
         page: int = 1,
         page_size: int = 10,
         movement_type: MovementType | None = None,
-        start_date: date | None = None,
-        end_date: date | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> StockMovementListResponse:
         """
         Returns paginated movement history across all products.
@@ -247,11 +247,11 @@ class StockService:
             query = query.where(StockMovement.movement_type == movement_type)
         if start_date is not None:
             query = query.where(
-                StockMovement.created_at >= datetime.combine(start_date, datetime.min.time())
+                StockMovement.created_at >= start_date
             )
         if end_date is not None:
             query = query.where(
-                StockMovement.created_at <= datetime.combine(end_date, datetime.max.time())
+                StockMovement.created_at <= end_date
             )
 
         count_result = await self.db.execute(

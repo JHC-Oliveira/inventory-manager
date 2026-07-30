@@ -55,13 +55,20 @@ export const getAllMovements = async (
   startDate?: string,
   endDate?: string,
 ): Promise<StockMovementListResponse> => {
+  const startInstant = startDate
+    ? new Date(`${startDate}T00:00:00`).toISOString()
+    : undefined
+  const endInstant = endDate
+    ? new Date(`${endDate}T23:59:59.999`).toISOString()
+    : undefined
+
   const response = await client.get('/stock/movements', {
     params: {
       page,
       page_size: pageSize,
       ...(movementType && { movement_type: movementType }),
-      ...(startDate && { start_date: startDate }),
-      ...(endDate && { end_date: endDate }),
+      ...(startInstant && { start_date: startInstant }),
+      ...(endInstant && { end_date: endInstant }),
     },
   })
   return response.data as StockMovementListResponse
