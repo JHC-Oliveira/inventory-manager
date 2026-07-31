@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 from enum import Enum as PyEnum
-
-from sqlalchemy import String, Integer, Text, DateTime, ForeignKey, Enum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
+
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.database import Base
-from app.utils.id_generator import make_id 
+from app.utils.id_generator import make_id
 
 if TYPE_CHECKING:
     from app.models.product import Product
@@ -64,6 +65,7 @@ class StockMovement(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
+        index=True
     )
 
     # Relationships
