@@ -1,16 +1,22 @@
 import math
-import structlog
 
+import structlog
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 
 from app.models.order import Order, OrderItem, OrderStatus
 from app.models.product import Product
+from app.models.stock_movement import MovementType
 from app.schemas.order import OrderCreate, OrderListResponse, OrderResponse
 from app.schemas.stock_movement import StockAdjustRequest
-from app.models.stock_movement import MovementType
-from app.services.stock_service import StockService
-from sqlalchemy.orm import selectinload 
+from app.services.product_service import PRODUCTS_CACHE_PATTERN
+from app.services.stock_service import (
+    ALL_MOVEMENTS_CACHE_PATTERN,
+    STOCK_HISTORY_CACHE_PATTERN,
+    StockService,
+)
+from app.utils.redis_client import cache_delete_pattern
 
 logger = structlog.get_logger()
 
@@ -106,6 +112,15 @@ class OrderService:
         await self.db.commit()
         await self.db.refresh(order)
         
+        # Stock moved and quantities changed — every cached view of them is now wrong.
+        # adjust_stock skipped this because we passed commit=False and own the transaction.
+        await cache_delete_pattern(ALL_MOVEMENTS_CACHE_PATTERN)
+        await cache_delete_pattern(PRODUCTS_CACHE_PATTERN)
+        for item, _product in validated_items:
+            await cache_delete_pattern(
+                STOCK_HISTORY_CACHE_PATTERN.format(product_id=item.product_id)
+            )
+        
         result = await self.db.execute(
             select(Order)
             .options(selectinload(Order.items))
@@ -180,6 +195,15 @@ class OrderService:
         order.status = OrderStatus.CANCELLED
         await self.db.commit()
         await self.db.refresh(order)
+        
+        # Stock was restored — same caches are stale as on create.
+        await cache_delete_pattern(ALL_MOVEMENTS_CACHE_PATTERN)
+        await cache_delete_pattern(PRODUCTS_CACHE_PATTERN)
+        for item in order.items:
+            if item.product_id is not None:
+                await cache_delete_pattern(
+                    STOCK_HISTORY_CACHE_PATTERN.format(product_id=item.product_id)
+                )
 
         result = await self.db.execute(
             select(Order)

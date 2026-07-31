@@ -2,16 +2,18 @@
 
 ## What Is Covered
 
-This is **Part 6** of Phase 10 — the last two admin pages, plus three bugs that were only found because the pages got built and used.
+This is **Part 6** of Phase 10 — the last two admin pages, plus four bugs that were only found because the pages got built and used.
 
-The work had six connected pieces:
+The work had eight connected pieces:
 
 1. an audit that found two entire backend features with no frontend caller;
 2. rejecting a wireframe that duplicated its own widgets;
 3. building Dashboard and Reports behind an admin gate;
 4. merging two movement views that had drifted apart;
 5. a UTC-versus-local-time bug that made a working filter look broken;
-6. discovering the project's typecheck had been checking nothing, and its build had never succeeded.
+6. discovering the project's typecheck had been checking nothing, and its build had never succeeded;
+7. indexing the column every movement query sorts by;
+8. a cache-invalidation gap that made new orders invisible for a minute.
 
 ```text
 PART 1
@@ -31,6 +33,12 @@ Filtering in UTC, displaying in local — the day-boundary bug
 
 PART 6
 The verification that verified nothing
+
+PART 7
+Indexing created_at — what an index costs
+
+PART 8
+"It's slow" that was actually "it's stale"
 ```
 
 ---
@@ -451,6 +459,132 @@ They must be committed together. The model alone leaves anyone who pulls with co
 
 ---
 
+## Part 8 — "It's Slow" That Was Actually "It's Stale"
+
+### The report, and the wrong hunt
+
+The symptom was reported as: *creating an order and going to Movements takes six to ten seconds.*
+
+That framing sent the investigation entirely down the wrong path. Latency was measured at every layer that could be reached:
+
+```text
+POST /orders                          65-107ms
+GET /stock/movements (cold cache)      20-84ms
+same request through the Vite proxy    10-20ms
+dev server module transform             3-7ms
+rate limiter rejections                       0
+containers                            idle, <2% CPU
+```
+
+Nothing was slow. A DevTools capture showed the Movements tab loading in ~105ms with two requests. Several rounds of measurement produced no reproduction, because **there was nothing to reproduce** — the framing was wrong, not the numbers.
+
+The investigation only turned when the symptom was restated precisely:
+
+> *"the page is responding quick, the problem is I create an order, then when I go to movements this order is not there, I need to wait some seconds and reload."*
+
+That is not slowness. That is **stale data**.
+
+```text
+SLOW    work takes a long time
+STALE   the wrong answer arrives instantly
+```
+
+### The tell
+
+Anything that **fixes itself if you wait and retry** is a cache expiring. Nothing genuinely slow gets *better* by doing nothing. The exact same signature had appeared in Phase 10.4, where the products list showed old quantities after a stock adjustment.
+
+### The cause
+
+`adjust_stock` invalidates caches — but only inside one branch:
+
+```python
+# 6. Commit OR just flush — caller decides
+if commit:
+    await self.db.commit()
+    await self.db.refresh(movement)
+
+    await cache_delete_pattern(STOCK_HISTORY_CACHE_PATTERN.format(...))
+    await cache_delete_pattern(PRODUCTS_CACHE_PATTERN)
+    await cache_delete_pattern(ALL_MOVEMENTS_CACHE_PATTERN)
+```
+
+And `create_order` calls it with `commit=False`, because the order service owns the transaction so that the whole order commits atomically:
+
+```python
+await stock_service.adjust_stock(..., commit=False)
+...
+await self.db.commit()      # order service commits everything itself
+```
+
+So the movements were written to Postgres and **nothing touched Redis**. The cached `/movements` page kept being served — correct-looking, instant, and wrong — until its 60-second TTL expired.
+
+`cancel_order` had the identical gap.
+
+### The generalisable rule
+
+```text
+Whoever owns the commit owns the invalidation.
+```
+
+Passing `commit=False` transfers **two** responsibilities, not one. Any service with an optional-commit parameter can spring this trap: the caller correctly takes over the transaction and silently drops the side effects that were bundled with it.
+
+### The fix
+
+`order_service` gained the imports it never needed before, and invalidation after each commit:
+
+```python
+await self.db.commit()
+await self.db.refresh(order)
+
+await cache_delete_pattern(ALL_MOVEMENTS_CACHE_PATTERN)
+await cache_delete_pattern(PRODUCTS_CACHE_PATTERN)
+for item, _product in validated_items:
+    await cache_delete_pattern(
+        STOCK_HISTORY_CACHE_PATTERN.format(product_id=item.product_id)
+    )
+```
+
+Three details worth keeping:
+
+- **After the commit, never before.** Clear the cache first and a failed commit leaves you having discarded a correct cache for nothing. Same principle as the existing rule *publish to RabbitMQ only after the DB commit succeeds*.
+- **The pattern constants are imported, not retyped.** A hand-typed `"stock:movements:*"` becomes a second definition that silently stops matching when the first is renamed — and an invalidation pattern that matches nothing fails invisibly.
+- **Stock history is per-product**, so a multi-item order stales several key spaces. The loop clears one per line item. `cancel_order` needs an extra `if item.product_id is not None` guard, since a hard-deleted product leaves the line item with its snapshot but no id.
+
+### Proving it
+
+```text
+movements BEFORE order:             46   ← response now cached
+movements IMMEDIATELY after order:  47   ← no wait, no reload
+```
+
+### The tests
+
+Two were added, one per path, matching the style of `test_adjust_stock_invalidates_history_cache`:
+
+```python
+with patch(
+    "app.services.order_service.cache_delete_pattern", new=AsyncMock()
+) as mock_cache_delete_pattern:
+    ...
+
+assert mock_cache_delete_pattern.await_count == 3
+mock_cache_delete_pattern.assert_any_await("stock:movements:*")
+mock_cache_delete_pattern.assert_any_await("products:list:*")
+mock_cache_delete_pattern.assert_any_await(f"stock:history:{product['id']}:*")
+```
+
+**Patch where the name is used, not where it's defined.** `from x import y` binds a new name in the importing module, so patching `app.utils.redis_client.cache_delete_pattern` would not touch the reference `order_service` holds.
+
+**These tests can genuinely fail** — worth stating explicitly given Part 6. `patch("app.services.order_service.cache_delete_pattern")` raises `AttributeError` if that name isn't imported in the module, which it wasn't before the fix. The test could not have passed by accident.
+
+**Pinning `await_count` exactly** is what makes them earn their keep: adding a fourth cache anywhere in the system breaks these tests and forces a decision about whether it needs clearing here too. That is exactly how the Phase 10.4 test caught the movements cache — it failed twice, correctly, as new caches appeared.
+
+### The debugging lesson
+
+The wrong framing cost far more than the bug did. "Slow" was investigated across six layers and several rounds of measurement; "the data is stale" was diagnosed in about two minutes. Before measuring anything, it is worth asking what the words in the bug report actually mean — *slow to appear* and *appears but wrong* are different problems with no overlap in their causes.
+
+---
+
 ## What Changed in the Project
 
 ```text
@@ -459,6 +593,8 @@ backend/
   app/routers/stock.py            -> start_date/end_date as datetime
   app/models/stock_movement.py    -> index=True on created_at
   alembic/versions/64d1d64...     -> CREATE INDEX migration
+  app/services/order_service.py   -> invalidate caches after create/cancel commit
+  tests/test_orders.py            -> 2 tests pinning that invalidation
 
 frontend/src/
   api/reports.ts                  -> NEW: four report endpoints typed
@@ -516,6 +652,18 @@ It is how the browser converts a user's calendar day into an instant.
 
 Split them and the schema drifts from the code describing it.
 
+### 11. Whoever owns the commit owns the invalidation
+
+`commit=False` hands over the transaction *and* the side effects bundled with it. Any optional-commit parameter can spring this trap.
+
+### 12. "It fixes itself if I wait" is always a cache, never slowness
+
+Nothing genuinely slow improves by doing nothing and retrying.
+
+### 13. Interrogate the words in a bug report before measuring anything
+
+*Slow to appear* and *appears but wrong* share no causes. Six layers were measured chasing the wrong one.
+
 ---
 
 ## Final State After This Part
@@ -525,8 +673,9 @@ Split them and the schema drifts from the code describing it.
 - role-filtered nav; `ProtectedRoute.adminOnly` in real use with a terminating fallback;
 - `/movements` — one table, type *and* date filters, filtering in the user's timezone;
 - `stock_movements.created_at` indexed, migration applied and verified in Postgres;
+- order create and cancel invalidate every cache they stale, proven live and pinned by tests;
 - a production build that succeeds for the first time in the project's history;
-- 88/88 backend tests passing.
+- 90/90 backend tests passing.
 
 ### Known gaps, deliberately left
 
@@ -568,4 +717,18 @@ AppHeader (tabs filtered by is_admin)
         WHERE created_at >= start AND <= end   ← now indexed (btree)
                     ↓
         rendered with toLocaleDateString -> matches the range the user picked
+
+
+AND THE PATH THAT WAS SILENTLY BROKEN:
+
+POST /orders
+  ↓
+create_order  ──> adjust_stock(commit=False) × N     <- skips invalidation
+  ↓                                                     because it doesn't commit
+await self.db.commit()          <- order service owns the transaction
+  ↓
+cache_delete_pattern × 3        <- ...so it must own the invalidation too
+  stock:movements:*                (this was missing — /movements served a
+  products:list:*                   stale page for up to 60s, which was
+  stock:history:{id}:* per item     reported as "slow" but was "stale")
 ```
