@@ -41,7 +41,10 @@ export type UpdateProductPayload = {
   is_active?: boolean
 }
 
-export const getProducts = async (page = 1, pageSize = 12): Promise<ProductsResponse> => {
+export const getProducts = async (
+  page = 1,
+  pageSize = 12,
+): Promise<ProductsResponse> => {
   const response = await client.get('/products', {
     params: { page, page_size: pageSize },
   })
@@ -53,15 +56,16 @@ export const getProduct = async (productId: string): Promise<Product> => {
   return response.data as Product
 }
 
-
-export const createProduct = async (data: CreateProductPayload): Promise<Product> => {
+export const createProduct = async (
+  data: CreateProductPayload,
+): Promise<Product> => {
   const response = await client.post('/products', data)
   return response.data as Product
 }
 
 export const updateProduct = async (
   productId: string,
-  data: UpdateProductPayload
+  data: UpdateProductPayload,
 ): Promise<Product> => {
   const response = await client.put(`/products/${productId}`, data)
   return response.data as Product

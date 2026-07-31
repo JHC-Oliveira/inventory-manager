@@ -8,6 +8,9 @@ import StockPage from './pages/StockPage'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import { refresh } from './api/auth'
 import { useAuthStore } from './store/authStore'
+import OrdersPage from './pages/OrdersPage'
+import DashboardPage from './pages/DashboardPage'
+import ReportsPage from './pages/ReportsPage'
 
 export default function App() {
   const setAuth = useAuthStore((s) => s.setAuth)
@@ -16,7 +19,7 @@ export default function App() {
   useEffect(() => {
     refresh()
       .then((data) => setAuth(data.access_token, data.user))
-      .catch(() => { })
+      .catch(() => {})
       .finally(() => setCheckingAuth(false))
   }, [])
 
@@ -29,9 +32,14 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="/dashboard" element={<Navigate to="/products" replace />} />
+          <Route element={<ProtectedRoute adminOnly />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+          </Route>
+
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/movements" element={<MovementsPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
           <Route path="/products/:id/stock" element={<StockPage />} />
         </Route>
 

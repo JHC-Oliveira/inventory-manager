@@ -1,15 +1,20 @@
 import math
+from datetime import datetime
+
 import structlog
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 
 from app.models.product import Product
-from app.models.stock_movement import StockMovement, MovementType
-from app.schemas.stock_movement import StockAdjustRequest, StockMovementListResponse, StockMovementResponse
-from app.utils.rabbitmq import publish_low_stock_alert
-from app.utils.redis_client import cache_get, cache_set, cache_delete_pattern
+from app.models.stock_movement import MovementType, StockMovement
+from app.schemas.stock_movement import (
+    StockAdjustRequest,
+    StockMovementListResponse,
+    StockMovementResponse,
+)
 from app.services.product_service import PRODUCTS_CACHE_PATTERN
-
+from app.utils.rabbitmq import publish_low_stock_alert
+from app.utils.redis_client import cache_delete_pattern, cache_get, cache_set
 
 logger = structlog.get_logger()
 
@@ -219,12 +224,18 @@ class StockService:
         page: int = 1,
         page_size: int = 10,
         movement_type: MovementType | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> StockMovementListResponse:
         """
         Returns paginated movement history across all products.
-        Most recent movements first. Optionally filtered by movement_type.
+        Most recent movements first.
+        Optionally filtered by movement_type and/or a date range.
         """
-        cache_key = f"stock:movements:{page}:{page_size}:{movement_type}"
+        cache_key = (
+            f"stock:movements:{page}:{page_size}:{movement_type}"
+            f":{start_date}:{end_date}"
+        )
 
         cached_data = await cache_get(cache_key)
         if cached_data is not None:
@@ -234,6 +245,14 @@ class StockService:
         query = select(StockMovement)
         if movement_type is not None:
             query = query.where(StockMovement.movement_type == movement_type)
+        if start_date is not None:
+            query = query.where(
+                StockMovement.created_at >= start_date
+            )
+        if end_date is not None:
+            query = query.where(
+                StockMovement.created_at <= end_date
+            )
 
         count_result = await self.db.execute(
             select(func.count()).select_from(query.subquery())

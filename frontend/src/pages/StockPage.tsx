@@ -72,7 +72,7 @@ export default function StockPage() {
   }
 
   const handleFormChange = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = event.target
     setForm((prev) => ({ ...prev, [name]: value }))
@@ -92,7 +92,9 @@ export default function StockPage() {
     }
 
     if (form.movement_type !== 'ADJUST' && quantityNum < 0) {
-      setFormError('Enter a positive quantity — the sign is applied automatically.')
+      setFormError(
+        'Enter a positive quantity — the sign is applied automatically.',
+      )
       return
     }
 
@@ -126,7 +128,10 @@ export default function StockPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <header className="border-b border-slate-800 bg-slate-900/60 px-8 py-6">
-        <Link to="/products" className="text-sm text-slate-400 hover:text-white">
+        <Link
+          to="/products"
+          className="text-sm text-slate-400 hover:text-white"
+        >
           ← Back to products
         </Link>
 
@@ -156,7 +161,9 @@ export default function StockPage() {
 
             <div className="mt-4 grid gap-4 md:grid-cols-3">
               <div>
-                <label className="mb-2 block text-sm text-slate-300">Type</label>
+                <label className="mb-2 block text-sm text-slate-300">
+                  Type
+                </label>
                 <select
                   name="movement_type"
                   value={form.movement_type}
@@ -170,7 +177,9 @@ export default function StockPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-slate-300">Quantity</label>
+                <label className="mb-2 block text-sm text-slate-300">
+                  Quantity
+                </label>
                 <input
                   name="quantity"
                   type="number"
@@ -196,8 +205,9 @@ export default function StockPage() {
             </div>
 
             <p className="mt-2 text-xs text-slate-500">
-              Receive and Ship take a positive number — the sign is applied for you.
-              Adjust accepts either a positive or negative number for manual corrections.
+              Receive and Ship take a positive number — the sign is applied for
+              you. Adjust accepts either a positive or negative number for
+              manual corrections.
             </p>
 
             {formError && (
@@ -243,8 +253,11 @@ export default function StockPage() {
                       </td>
                       <td className="py-2 pr-4">{m.movement_type}</td>
                       <td
-                        className={`py-2 pr-4 font-semibold ${m.quantity_change > 0 ? 'text-emerald-400' : 'text-red-400'
-                          }`}
+                        className={`py-2 pr-4 font-semibold ${
+                          m.quantity_change > 0
+                            ? 'text-emerald-400'
+                            : 'text-red-400'
+                        }`}
                       >
                         {m.quantity_change > 0 ? '+' : ''}
                         {m.quantity_change}
@@ -258,7 +271,6 @@ export default function StockPage() {
                       >
                         {m.note ?? '—'}
                       </td>
-
                     </tr>
                   ))}
                 </tbody>

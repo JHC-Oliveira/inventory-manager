@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from httpx import AsyncClient
 from app.config import get_settings
@@ -622,3 +624,73 @@ async def test_list_orders_requires_auth(client: AsyncClient):
     response = await client.get(f"{API_PREFIX}/orders")  # no token
 
     assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# CACHE INVALIDATION
+# create_order / cancel_order call adjust_stock with commit=False, so the
+# invalidation inside adjust_stock is skipped — the order service owns the
+# commit and therefore owns the invalidation that goes with it.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_create_order_invalidates_caches(
+    client: AsyncClient,
+    user_token: str,
+    admin_token: str,
+):
+    product = await create_product(client, admin_token, quantity=10)
+
+    with patch(
+        "app.services.order_service.cache_delete_pattern", new=AsyncMock()
+    ) as mock_cache_delete_pattern:
+        response = await client.post(
+            f"{API_PREFIX}/orders",
+            json={
+                "customer_name": "Jane Doe",
+                "items": [{"product_id": product["id"], "quantity": 2}],
+            },
+            headers={"Authorization": f"Bearer {user_token}"},
+        )
+
+    assert response.status_code == 201
+
+    assert mock_cache_delete_pattern.await_count == 3
+    mock_cache_delete_pattern.assert_any_await("stock:movements:*")
+    mock_cache_delete_pattern.assert_any_await("products:list:*")
+    mock_cache_delete_pattern.assert_any_await(f"stock:history:{product['id']}:*")
+
+
+@pytest.mark.asyncio
+async def test_cancel_order_invalidates_caches(
+    client: AsyncClient,
+    user_token: str,
+    admin_token: str,
+):
+    product = await create_product(client, admin_token, quantity=10)
+
+    create_response = await client.post(
+        f"{API_PREFIX}/orders",
+        json={
+            "customer_name": "Jane Doe",
+            "items": [{"product_id": product["id"], "quantity": 2}],
+        },
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert create_response.status_code == 201
+    order_id = create_response.json()["id"]
+
+    with patch(
+        "app.services.order_service.cache_delete_pattern", new=AsyncMock()
+    ) as mock_cache_delete_pattern:
+        response = await client.patch(
+            f"{API_PREFIX}/orders/{order_id}/cancel",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+    assert response.status_code == 200
+
+    assert mock_cache_delete_pattern.await_count == 3
+    mock_cache_delete_pattern.assert_any_await("stock:movements:*")
+    mock_cache_delete_pattern.assert_any_await("products:list:*")
+    mock_cache_delete_pattern.assert_any_await(f"stock:history:{product['id']}:*")

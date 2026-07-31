@@ -48,7 +48,9 @@ export default function LoginPage() {
             }}
           />
 
-          {error && <p className="text-sm text-red-400 whitespace-pre-line">{error}</p>}
+          {error && (
+            <p className="text-sm text-red-400 whitespace-pre-line">{error}</p>
+          )}
 
           <button className="w-full rounded-lg bg-indigo-600 py-2 font-medium text-white hover:bg-indigo-500">
             Sign in
@@ -56,7 +58,10 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-4 text-sm text-slate-400">
-          No account? <Link to="/register" className="text-indigo-400">Register</Link>
+          No account?{' '}
+          <Link to="/register" className="text-indigo-400">
+            Register
+          </Link>
         </p>
       </div>
     </div>

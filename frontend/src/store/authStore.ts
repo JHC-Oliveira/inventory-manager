@@ -19,10 +19,7 @@ type AuthState = {
 export const useAuthStore = create<AuthState>((set) => ({
   accessToken: null,
   user: null,
-  setAuth: (accessToken, user) =>
-    set({ accessToken, user }),
-  setAccessToken: (accessToken) =>
-    set({ accessToken }),
-  logout: () =>
-    set({ accessToken: null, user: null }),
+  setAuth: (accessToken, user) => set({ accessToken, user }),
+  setAccessToken: (accessToken) => set({ accessToken }),
+  logout: () => set({ accessToken: null, user: null }),
 }))

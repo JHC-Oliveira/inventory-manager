@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppHeader from '../components/layout/AppHeader'
-import { getAllMovements, type MovementType, type StockMovement } from '../api/stock'
+import {
+  getAllMovements,
+  type MovementType,
+  type StockMovement,
+} from '../api/stock'
 import { Button } from '../components/ui/button'
 import { getErrorMessage } from '../lib/errors'
 
@@ -15,19 +19,28 @@ const FILTERS: { label: string; value: MovementType | 'ALL' }[] = [
 export default function MovementsPage() {
   const [movements, setMovements] = useState<StockMovement[]>([])
   const [filter, setFilter] = useState<MovementType | 'ALL'>('ALL')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [appliedRange, setAppliedRange] = useState({ start: '', end: '' })
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [pageError, setPageError] = useState('')
 
-  const loadMovements = async (targetPage: number, targetFilter: MovementType | 'ALL') => {
+  const loadMovements = async (
+    targetPage: number,
+    targetFilter: MovementType | 'ALL',
+    range: { start: string; end: string },
+  ) => {
     try {
       setLoading(true)
       setPageError('')
       const data = await getAllMovements(
         targetPage,
         20,
-        targetFilter === 'ALL' ? undefined : targetFilter
+        targetFilter === 'ALL' ? undefined : targetFilter,
+        range.start || undefined,
+        range.end || undefined,
       )
       setMovements(data.items)
       setTotalPages(data.total_pages)
@@ -40,9 +53,22 @@ export default function MovementsPage() {
   }
 
   useEffect(() => {
-    loadMovements(1, filter)
-  }, [filter])
+    loadMovements(1, filter, appliedRange)
+  }, [filter, appliedRange])
 
+  const applyRange = () => {
+    if (startDate && endDate && startDate > endDate) {
+      setPageError('Start date must be before end date.')
+      return
+    }
+    setAppliedRange({ start: startDate, end: endDate })
+  }
+
+  const clearRange = () => {
+    setStartDate('')
+    setEndDate('')
+    setAppliedRange({ start: '', end: '' })
+  }
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <AppHeader />
@@ -70,6 +96,51 @@ export default function MovementsPage() {
               {f.label}
             </button>
           ))}
+        </div>
+
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="mb-2 block text-sm text-slate-300">
+              Start date
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="[color-scheme:dark] rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition hover:border-slate-500 focus:border-slate-500"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm text-slate-300">
+              End date
+            </label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="[color-scheme:dark] rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition hover:border-slate-500 focus:border-slate-500"
+            />
+          </div>
+
+          <Button
+            type="button"
+            onClick={applyRange}
+            className="bg-cyan-600 text-white transition hover:bg-cyan-500"
+          >
+            Apply
+          </Button>
+
+          {(appliedRange.start || appliedRange.end) && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={clearRange}
+              className="transition hover:bg-slate-800 hover:text-white"
+            >
+              Clear
+            </Button>
+          )}
         </div>
 
         {pageError && (
@@ -111,13 +182,17 @@ export default function MovementsPage() {
                             {m.product_sku}
                           </Link>
                         ) : (
-                          <span className="text-slate-500">{m.product_sku} (deleted)</span>
+                          <span className="text-slate-500">
+                            {m.product_sku} (deleted)
+                          </span>
                         )}
                       </td>
                       <td className="py-2 pr-4">{m.movement_type}</td>
                       <td
                         className={`py-2 pr-4 font-semibold ${
-                          m.quantity_change > 0 ? 'text-emerald-400' : 'text-red-400'
+                          m.quantity_change > 0
+                            ? 'text-emerald-400'
+                            : 'text-red-400'
                         }`}
                       >
                         {m.quantity_change > 0 ? '+' : ''}
@@ -145,7 +220,7 @@ export default function MovementsPage() {
                 type="button"
                 variant="outline"
                 disabled={page <= 1}
-                onClick={() => loadMovements(page - 1, filter)}
+                onClick={() => loadMovements(page - 1, filter, appliedRange)}
               >
                 Previous
               </Button>
@@ -156,7 +231,7 @@ export default function MovementsPage() {
                 type="button"
                 variant="outline"
                 disabled={page >= totalPages}
-                onClick={() => loadMovements(page + 1, filter)}
+                onClick={() => loadMovements(page + 1, filter, appliedRange)}
               >
                 Next
               </Button>

@@ -4,14 +4,18 @@ import { Button } from '../ui/button'
 import { logout as logoutApi } from '../../api/auth'
 
 const tabs = [
-  { to: '/products', label: 'Products' },
-  { to: '/movements', label: 'Movements' },
+  { to: '/dashboard', label: 'Dashboard', adminOnly: true },
+  { to: '/products', label: 'Products', adminOnly: false },
+  { to: '/movements', label: 'Movements', adminOnly: false },
+  { to: '/orders', label: 'Orders', adminOnly: false },
+  { to: '/reports', label: 'Reports', adminOnly: true },
 ]
 
 export default function AppHeader() {
   const location = useLocation()
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
+  const visibleTabs = tabs.filter((tab) => !tab.adminOnly || user?.is_admin)
   const clearAuth = useAuthStore((s) => s.logout)
 
   const handleLogout = async () => {
@@ -31,7 +35,7 @@ export default function AppHeader() {
         <div>
           <p className="text-sm text-slate-400">Inventory Manager</p>
           <nav className="mt-2 flex gap-4">
-            {tabs.map((tab) => (
+            {visibleTabs.map((tab) => (
               <Link
                 key={tab.to}
                 to={tab.to}

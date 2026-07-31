@@ -57,7 +57,9 @@ export default function RegisterPage() {
             <li>Full name must be at least 2 characters</li>
           </ul>
 
-          {error && <p className="text-sm text-red-400 whitespace-pre-line">{error}</p>}
+          {error && (
+            <p className="text-sm text-red-400 whitespace-pre-line">{error}</p>
+          )}
 
           <button className="w-full rounded-lg bg-indigo-600 py-2 font-medium text-white hover:bg-indigo-500">
             Register
